@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.*
+*.log
+coverage
+.eslintcache
+.git
+.gitignore
+README.md
+docker-compose.yml
+.prettierrc.json
+.prettierignore
+eslint.config.js
