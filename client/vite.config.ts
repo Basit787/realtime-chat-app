@@ -23,7 +23,11 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   build: { target: "es2022" },
   server: {
+    host: true,
     port: 5176,
+    watch: {
+      usePolling: process.env.CHOKIDAR_USEPOLLING === "true",
+    },
     proxy,
   },
   preview: {

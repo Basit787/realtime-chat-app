@@ -10,6 +10,7 @@ export interface IMessage {
   type: MessageType;
   text: string;
   file?: IMessageFile;
+  deleted?: boolean;
   at: Date;
 }
 
@@ -30,6 +31,7 @@ const messageSchema = new mongoose.Schema<IMessage>({
   type: { type: String, enum: ["text", "file"], default: "text" },
   text: { type: String, required: true, maxlength: 2000 },
   file: { type: messageFileSchema, required: false },
+  deleted: { type: Boolean, default: false },
   at: { type: Date, default: Date.now },
 });
 

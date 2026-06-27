@@ -7,7 +7,7 @@ import type { AppAuth } from "./auth/index.js";
 import { config } from "./config/index.js";
 import { errorHandler } from "./middleware/index.js";
 
-export function createApp(auth: AppAuth) {
+export const createApp = (auth: AppAuth) => {
   const app = express();
 
   app.use(
@@ -29,8 +29,8 @@ export function createApp(auth: AppAuth) {
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
   return app;
-}
+};
 
-export function registerErrorHandler(app: express.Application) {
+export const registerErrorHandler = (app: express.Application) => {
   app.use(errorHandler);
-}
+};

@@ -1,3 +1,12 @@
+export interface MinioConfig {
+  enabled: boolean;
+  endpoint: string;
+  accessKey: string;
+  secretKey: string;
+  bucket: string;
+  region: string;
+}
+
 export interface AppConfig {
   port: number;
   mongodbUri: string;
@@ -6,6 +15,7 @@ export interface AppConfig {
   corsOrigin: string[];
   uploadDir: string;
   maxFileSizeMb: number;
+  minio: MinioConfig;
   turnHost: string;
   turnPort: number;
   turnUser: string;

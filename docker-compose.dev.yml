@@ -1,0 +1,130 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_HOST: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chat-uploads}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mc alias set local "http://$$MINIO_HOST" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb "local/$$MINIO_BUCKET" --ignore-existing
+        mc anonymous set none "local/$$MINIO_BUCKET"
+        echo "MinIO bucket '$$MINIO_BUCKET' is ready."
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+    command: >
+      -n --log-file=stdout
+      --listening-port=3478
+      --fingerprint
+      --lt-cred-mech
+      --user=${TURN_USER:-chat}:${TURN_PASSWORD:-chatpass}
+      --realm=realtime-chat
+      --external-ip=${TURN_EXTERNAL_IP:-127.0.0.1}
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongo:27017/realtime_chat
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-secret-change-me}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5176}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@chat.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
+      ADMIN_NAME: ${ADMIN_NAME:-admin}
+      MAX_FILE_SIZE_MB: "25"
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chat-uploads}
+      MINIO_REGION: us-east-1
+      TURN_HOST: ${TURN_HOST:-localhost}
+      TURN_PORT: "3478"
+      TURN_USER: ${TURN_USER:-chat}
+      TURN_PASSWORD: ${TURN_PASSWORD:-chatpass}
+      CORS_ORIGIN: http://localhost:5176,http://localhost:80
+    volumes:
+      - ./server/src:/app/src
+      - ./server/package.json:/app/package.json
+      - ./server/tsconfig.json:/app/tsconfig.json
+      - ./server/eslint.config.js:/app/eslint.config.js
+      - server_node_modules:/app/node_modules
+    depends_on:
+      mongo:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      coturn:
+        condition: service_started
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "5176:5176"
+    environment:
+      API_PROXY_TARGET: http://server:3004
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./client/src:/app/src
+      - ./client/index.html:/app/index.html
+      - ./client/vite.config.ts:/app/vite.config.ts
+      - ./client/tsconfig.json:/app/tsconfig.json
+      - ./client/components.json:/app/components.json
+      - client_node_modules:/app/node_modules
+    depends_on:
+      - server
+
+volumes:
+  mongo_data:
+  minio_data:
+  server_node_modules:
+  client_node_modules:

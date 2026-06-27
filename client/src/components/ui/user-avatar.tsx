@@ -1,28 +1,41 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { userAvatarUrl } from "@/lib/avatar-url";
 import { getAvatarColor, getInitials } from "@/lib/format";
+import { presenceStatusColor } from "@/lib/presence";
+import type { UserStatus } from "@/pages/chat/store/chat-store";
 
 type UserAvatarProps = {
   name: string;
+  imageUrl?: string | null;
   className?: string;
   showOnline?: boolean;
   online?: boolean;
+  status?: UserStatus;
 };
 
-export function UserAvatar({ name, className, showOnline, online }: UserAvatarProps) {
+export const UserAvatar = ({ name, imageUrl, className, showOnline, online, status }: UserAvatarProps) => {
+  const src = userAvatarUrl(name, imageUrl);
+  const resolvedStatus: UserStatus | undefined = showOnline
+    ? status ?? (online === false ? "offline" : online === true ? "online" : undefined)
+    : undefined;
+
   return (
     <div className={cn("relative shrink-0", className)}>
       <Avatar className="h-10 w-10">
-        <AvatarFallback className={cn("text-xs text-white", getAvatarColor(name))}>{getInitials(name)}</AvatarFallback>
+        <AvatarImage src={src} alt={name} className="object-cover" />
+        <AvatarFallback className={cn("text-xs text-white", getAvatarColor(name))}>
+          {getInitials(name)}
+        </AvatarFallback>
       </Avatar>
-      {showOnline && (
+      {resolvedStatus && (
         <span
           className={cn(
             "absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-sidebar",
-            online ? "bg-online" : "bg-muted-foreground/50",
+            presenceStatusColor(resolvedStatus),
           )}
         />
       )}
     </div>
   );
-}
+};

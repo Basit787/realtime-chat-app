@@ -1,28 +1,31 @@
-import path from "node:path";
-import { config } from "../config/index.js";
+import { buildFileObjectKey } from "../middleware/upload.js";
+import { objectStorage } from "./objectStorage.service.js";
 import { SharedFile, type SharedFileDocument } from "../models/SharedFile.js";
 import type { AuthUser } from "../types/index.js";
 
-export class FileService {
-  async saveUploadedFile(room: string, user: AuthUser, file: Express.Multer.File): Promise<SharedFileDocument> {
-    return SharedFile.create({
-      room,
-      user: user.username,
-      userId: user.id,
-      originalName: file.originalname,
-      mimeType: file.mimetype || "application/octet-stream",
-      size: file.size,
-      storedName: file.filename,
-    });
-  }
+const saveUploadedFile = async (
+  room: string,
+  user: AuthUser,
+  file: Express.Multer.File,
+): Promise<SharedFileDocument> => {
+  const storedName = buildFileObjectKey(file.originalname);
+  await objectStorage.put(storedName, file.buffer, file.mimetype || "application/octet-stream");
 
-  async getSharedFile(room: string, id: string): Promise<SharedFileDocument | null> {
-    return SharedFile.findOne({ _id: id, room });
-  }
+  return SharedFile.create({
+    room,
+    user: user.username,
+    userId: user.id,
+    originalName: file.originalname,
+    mimeType: file.mimetype || "application/octet-stream",
+    size: file.size,
+    storedName,
+  });
+};
 
-  getStoredPath(storedName: string): string {
-    return path.join(config.uploadDir, storedName);
-  }
-}
+const getSharedFile = async (room: string, id: string): Promise<SharedFileDocument | null> =>
+  SharedFile.findOne({ _id: id, room });
 
-export const fileService = new FileService();
+export const fileService = {
+  saveUploadedFile,
+  getSharedFile,
+};

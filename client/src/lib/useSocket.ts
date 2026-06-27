@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import type { ChatMessage } from "@/pages/chat/api/api";
+import type { ChatMessage, CallHistoryEntry } from "@/pages/chat/api/api";
 import { GENERAL_ROOM } from "@/pages/chat/api/api";
 import { conversationToRoom } from "@/lib/rooms";
-import { useChatStore } from "@/pages/chat/store/chat-store";
+import { useChatStore, type UserStatus } from "@/pages/chat/store/chat-store";
 import { useAuthStore } from "@/pages/auth/store/auth-store";
 import { SOCKET_URL } from "@/lib/utils";
 
-export function useSocket(): Socket | null {
+export const useSocket = (): Socket | null => {
   const token = useAuthStore((s) => s.token);
   const username = useAuthStore((s) => s.username);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const addMessage = useChatStore((s) => s.addMessage);
+  const addCallHistory = useChatStore((s) => s.addCallHistory);
+  const markMessageDeleted = useChatStore((s) => s.markMessageDeleted);
   const setOnlineUsers = useChatStore((s) => s.setOnlineUsers);
+  const mergeUserStatuses = useChatStore((s) => s.mergeUserStatuses);
   const setTypingUser = useChatStore((s) => s.setTypingUser);
   const [socket, setSocket] = useState<Socket | null>(null);
   const joinedDmRoom = useRef<string | null>(null);
@@ -28,8 +31,13 @@ export function useSocket(): Socket | null {
     setSocket(s);
 
     s.on("message", (message: ChatMessage) => addMessage(message));
-    s.on("presence", (p: { room?: string; count: number; users: string[] }) => {
-      if (!p.room || p.room === GENERAL_ROOM) setOnlineUsers(p.users ?? []);
+    s.on("message_deleted", (message: ChatMessage) => markMessageDeleted(message));
+    s.on("call:history", (call: CallHistoryEntry) => addCallHistory(call));
+    s.on("presence", (p: { room?: string; count: number; users: string[]; statuses?: Record<string, string> }) => {
+      if (!p.room || p.room === GENERAL_ROOM) {
+        setOnlineUsers(p.users ?? []);
+        if (p.statuses) mergeUserStatuses(p.statuses as Record<string, UserStatus>);
+      }
     });
     s.on("typing", (p: { room: string; username: string }) => {
       setTypingUser(p.room, p.username);
@@ -41,7 +49,7 @@ export function useSocket(): Socket | null {
       setSocket(null);
       joinedDmRoom.current = null;
     };
-  }, [addMessage, isAuthenticated, setOnlineUsers, setTypingUser, token]);
+  }, [addCallHistory, addMessage, isAuthenticated, markMessageDeleted, mergeUserStatuses, setOnlineUsers, setTypingUser, token]);
 
   useEffect(() => {
     if (!socket || !username) return;
@@ -64,4 +72,4 @@ export function useSocket(): Socket | null {
   }, [activeConversationId, socket, username]);
 
   return socket;
-}
+};

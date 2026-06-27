@@ -1,14 +1,37 @@
-import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { fetchMessages } from "@/pages/chat/api/api";
+import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import {
+  createGroup,
+  deleteMessage,
+  fetchCallHistory,
+  fetchContacts,
+  fetchGroup,
+  fetchGroups,
+  fetchMessages,
+  removeGroupPhoto,
+  updateGroup,
+  uploadFile,
+  uploadGroupPhoto,
+  type ChatGroup,
+  type ChatMessage,
+  type CreateGroupPayload,
+  type UpdateGroupPayload,
+} from "@/pages/chat/api/api";
+import { fetchPresenceStatus } from "@/pages/auth/api/api";
 import { conversationToRoom } from "@/lib/rooms";
+import { useMutationToast } from "@/lib/use-mutation-toast";
 import { useChatStore } from "@/pages/chat/store/chat-store";
 import { useAuthStore } from "@/pages/auth/store/auth-store";
 
-export function useChat() {
+export const useChat = () => {
   const username = useAuthStore((s) => s.username);
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const mergeMessages = useChatStore((s) => s.mergeMessages);
+  const mergeCallHistory = useChatStore((s) => s.mergeCallHistory);
+  const setGroups = useChatStore((s) => s.setGroups);
+  const setKnownContacts = useChatStore((s) => s.setKnownContacts);
+  const mergeUserStatuses = useChatStore((s) => s.mergeUserStatuses);
+  const setUserStatus = useChatStore((s) => s.setUserStatus);
   const room = conversationToRoom(activeConversationId, username);
 
   const messages = useQuery({
@@ -17,9 +40,152 @@ export function useChat() {
     enabled: !!username,
   });
 
+  const calls = useQuery({
+    queryKey: ["call-history"],
+    queryFn: () => fetchCallHistory(),
+    enabled: !!username,
+  });
+
+  const groups = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => fetchGroups(),
+    enabled: !!username,
+  });
+
+  const contacts = useQuery({
+    queryKey: ["contacts"],
+    queryFn: () => fetchContacts(),
+    enabled: !!username,
+  });
+
+  const presenceStatus = useQuery({
+    queryKey: ["presence-status", username],
+    queryFn: () => fetchPresenceStatus(),
+    enabled: !!username,
+  });
+
   useEffect(() => {
     if (messages.data) mergeMessages(room, messages.data);
   }, [messages.data, mergeMessages, room]);
 
-  return { messages, room };
-}
+  useEffect(() => {
+    if (calls.data) mergeCallHistory(calls.data);
+  }, [calls.data, mergeCallHistory]);
+
+  useEffect(() => {
+    if (groups.data) setGroups(groups.data);
+  }, [groups.data, setGroups]);
+
+  useEffect(() => {
+    if (contacts.data) setKnownContacts(contacts.data);
+  }, [contacts.data, setKnownContacts]);
+
+  useEffect(() => {
+    if (!presenceStatus.data || !username) return;
+    mergeUserStatuses({ [username]: presenceStatus.data });
+    setUserStatus(presenceStatus.data);
+  }, [presenceStatus.data, mergeUserStatuses, setUserStatus, username]);
+
+  return { messages, calls, groups, contacts, presenceStatus, room };
+};
+
+export const useGroupQuery = (groupId: string | undefined, enabled: boolean) => {
+  return useQuery({
+    queryKey: ["group", groupId],
+    queryFn: () => fetchGroup(groupId!),
+    enabled: enabled && !!groupId,
+  });
+};
+
+export const useCreateGroup = (): UseMutationResult<ChatGroup, Error, CreateGroupPayload> => {
+  const addGroup = useChatStore((s) => s.addGroup);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
+  const queryClient = useQueryClient();
+  const { onSuccessNotification, onErrorNotification } = useMutationToast();
+
+  return useMutation({
+    mutationFn: createGroup,
+    onSuccess: (group) => {
+      addGroup(group);
+      setActiveConversation(group.room);
+      void queryClient.invalidateQueries({ queryKey: ["groups"] });
+      onSuccessNotification(`Group "${group.name}" created`);
+    },
+    onError: (err) => onErrorNotification(err, "Could not create group"),
+  });
+};
+
+export const useUpdateGroup = (groupId: string) => {
+  const updateGroupInStore = useChatStore((s) => s.updateGroup);
+  const queryClient = useQueryClient();
+  const { onSuccessNotification, onErrorNotification } = useMutationToast();
+
+  return useMutation({
+    mutationFn: (body: UpdateGroupPayload) => updateGroup(groupId, body),
+    onSuccess: (updated) => {
+      updateGroupInStore(updated);
+      void queryClient.invalidateQueries({ queryKey: ["group", groupId] });
+      void queryClient.invalidateQueries({ queryKey: ["groups"] });
+      onSuccessNotification("Group updated");
+    },
+    onError: (err) => onErrorNotification(err, "Could not update group"),
+  });
+};
+
+export const useUploadGroupPhoto = (groupId: string) => {
+  const updateGroupInStore = useChatStore((s) => s.updateGroup);
+  const queryClient = useQueryClient();
+  const { onSuccessNotification, onErrorNotification } = useMutationToast();
+
+  return useMutation({
+    mutationFn: (file: File) => uploadGroupPhoto(groupId, file),
+    onSuccess: (image) => {
+      const existing = useChatStore.getState().groups.find((g) => g.id === groupId);
+      if (existing) updateGroupInStore({ ...existing, image });
+      void queryClient.invalidateQueries({ queryKey: ["group", groupId] });
+      onSuccessNotification("Group photo updated");
+    },
+    onError: (err) => onErrorNotification(err, "Could not upload photo"),
+  });
+};
+
+export const useRemoveGroupPhoto = (groupId: string) => {
+  const updateGroupInStore = useChatStore((s) => s.updateGroup);
+  const queryClient = useQueryClient();
+  const { onSuccessNotification, onErrorNotification } = useMutationToast();
+
+  return useMutation({
+    mutationFn: () => removeGroupPhoto(groupId),
+    onSuccess: () => {
+      const existing = useChatStore.getState().groups.find((g) => g.id === groupId);
+      if (existing) updateGroupInStore({ ...existing, image: "" });
+      void queryClient.invalidateQueries({ queryKey: ["group", groupId] });
+      onSuccessNotification("Group photo removed");
+    },
+    onError: (err) => onErrorNotification(err, "Could not remove photo"),
+  });
+};
+
+export const useUploadFile = (room: string): UseMutationResult<
+  ChatMessage,
+  Error,
+  { file: File; caption?: string }
+> => {
+  const addMessage = useChatStore((s) => s.addMessage);
+  const { onErrorNotification } = useMutationToast();
+
+  return useMutation({
+    mutationFn: ({ file, caption }) => uploadFile(room, file, caption),
+    onSuccess: (message) => addMessage(message),
+    onError: (err) => onErrorNotification(err, "Could not upload file"),
+  });
+};
+
+export const useDeleteMessage = () => {
+  const { onErrorNotification } = useMutationToast();
+
+  return useMutation({
+    mutationFn: ({ room, messageId }: { room: string; messageId: string }) => deleteMessage(room, messageId),
+    onError: (err) => onErrorNotification(err, "Could not delete message"),
+  });
+};

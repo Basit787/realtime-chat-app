@@ -1,42 +1,90 @@
-import { useMutation } from "@tanstack/react-query";
-import { loginWithEmail, logoutSession, registerWithEmail } from "@/pages/auth/api/api";
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import {
+  fetchSession,
+  loginWithEmail,
+  logoutSession,
+  registerWithEmail,
+  type AuthSession,
+  type LoginPayload,
+  type RegisterPayload,
+} from "@/pages/auth/api/api";
 import { useAuthStore } from "@/pages/auth/store/auth-store";
-import { toastError, toastSuccess } from "@/lib/toast";
+import { useMutationToast } from "@/lib/use-mutation-toast";
 
-export function useAuth() {
-  const token = useAuthStore((s) => s.token);
-  const username = useAuthStore((s) => s.username);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+export const useLogin = (): UseMutationResult<AuthSession, Error, LoginPayload> => {
   const setSession = useAuthStore((s) => s.setSession);
+  const { onSuccessNotification, onErrorNotification } = useMutationToast();
+
+  return useMutation({
+    mutationFn: loginWithEmail,
+    onSuccess: (session) => {
+      const name = session.user.name.trim();
+      onSuccessNotification(name ? `Welcome back, ${name}` : "Welcome back");
+      setSession(session.user.name, session.token, session.user.email, session.user.image ?? "");
+    },
+    onError: (err) => onErrorNotification(err, "Login failed"),
+  });
+};
+
+export const useRegister = (): UseMutationResult<AuthSession, Error, RegisterPayload> => {
+  const setSession = useAuthStore((s) => s.setSession);
+  const { onSuccessNotification, onErrorNotification } = useMutationToast();
+
+  return useMutation({
+    mutationFn: registerWithEmail,
+    onSuccess: (session) => {
+      onSuccessNotification("Account created successfully");
+      setSession(session.user.name, session.token, session.user.email, session.user.image ?? "");
+    },
+    onError: (err) => onErrorNotification(err, "Registration failed"),
+  });
+};
+
+export const useLogout = (): UseMutationResult<void, Error, void> => {
+  const queryClient = useQueryClient();
   const clearSession = useAuthStore((s) => s.clearSession);
+  const { onSuccessNotification, onErrorNotification } = useMutationToast();
 
-  const login = useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) => loginWithEmail(email, password),
-    onSuccess: (data) => {
-      setSession(data.user.name, data.token);
-      toastSuccess(`Welcome back, ${data.user.name}!`);
-    },
-    onError: (error) => toastError(error, "Login failed"),
-  });
-
-  const register = useMutation({
-    mutationFn: ({ email, password, name }: { email: string; password: string; name: string }) =>
-      registerWithEmail(email, password, name),
-    onSuccess: (data) => {
-      setSession(data.user.name, data.token);
-      toastSuccess(`Account created. Welcome, ${data.user.name}!`);
-    },
-    onError: (error) => toastError(error, "Registration failed"),
-  });
-
-  const logout = useMutation({
+  return useMutation({
     mutationFn: logoutSession,
     onSuccess: () => {
+      queryClient.setQueryData(["session"], null);
+      queryClient.removeQueries({ queryKey: ["session"] });
       clearSession();
-      toastSuccess("Signed out successfully");
+      onSuccessNotification("Signed out successfully");
     },
-    onError: (error) => toastError(error, "Sign out failed"),
+    onError: (err) => onErrorNotification(err, "Sign out failed"),
+  });
+};
+
+export const useAuth = () => {
+  const token = useAuthStore((s) => s.token);
+  const username = useAuthStore((s) => s.username);
+  const profileImage = useAuthStore((s) => s.profileImage);
+  const email = useAuthStore((s) => s.email);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setSession = useAuthStore((s) => s.setSession);
+
+  const login = useLogin();
+  const register = useRegister();
+  const logout = useLogout();
+
+  const sessionQuery = useQuery({
+    queryKey: ["session"],
+    queryFn: fetchSession,
+    enabled: isAuthenticated,
+    staleTime: 60_000,
   });
 
-  return { token, username, isAuthenticated, login, register, logout };
-}
+  useEffect(() => {
+    const user = sessionQuery.data;
+    if (!isAuthenticated || !token || !user) return;
+    const nextImage = user.image ?? "";
+    if (user.email !== email || user.name !== username || nextImage !== profileImage) {
+      setSession(user.name, token, user.email, nextImage);
+    }
+  }, [sessionQuery.data, email, username, profileImage, token, setSession, isAuthenticated]);
+
+  return { token, username, email, isAuthenticated, login, register, logout, sessionQuery };
+};

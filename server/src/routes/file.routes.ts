@@ -8,7 +8,7 @@ import { uploadMiddleware } from "../middleware/upload.js";
 import { fileParamSchema, roomParamSchema } from "../validators/file.validator.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-export function createFileRoutes(io: Server, auth: AppAuth) {
+export const createFileRoutes = (io: Server, auth: AppAuth) => {
   const router = Router({ mergeParams: true });
   const authenticate = createAuthenticate(auth);
 

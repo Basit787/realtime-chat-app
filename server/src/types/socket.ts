@@ -8,10 +8,15 @@ export interface SocketUser {
   username: string;
 }
 
+import type { PresenceStatus } from "../models/UserPresence.js";
+
+export type { PresenceStatus };
+
 export interface PresencePayload {
   room?: string;
   count: number;
   users: string[];
+  statuses: Record<string, PresenceStatus>;
 }
 
 export interface TypingPayload {
@@ -56,5 +61,32 @@ export interface CallAnswerPayload extends CallRelayPayload {
 }
 
 export interface CallIceCandidatePayload extends CallRelayPayload {
+  candidate: unknown;
+}
+
+export interface GroupCallState {
+  room: string;
+  callType: CallType;
+  host: string;
+  participants: string[];
+}
+
+export interface GroupCallRelayPayload {
+  room: string;
+  to: string;
+}
+
+export interface GroupCallOfferPayload extends GroupCallRelayPayload {
+  from: string;
+  sdp: unknown;
+}
+
+export interface GroupCallAnswerPayload extends GroupCallRelayPayload {
+  from: string;
+  sdp: unknown;
+}
+
+export interface GroupCallIcePayload extends GroupCallRelayPayload {
+  from: string;
   candidate: unknown;
 }

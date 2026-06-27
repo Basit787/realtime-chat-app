@@ -1,56 +1,31 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { createAuthProfileSlice } from "@/pages/auth/store/auth-profile-slice";
+import { createAuthSessionSlice } from "@/pages/auth/store/auth-session-slice";
+import type { AuthState } from "@/pages/auth/store/auth-types";
 
-const AUTH_TOKEN_KEY = "auth_token";
-const AUTH_NAME_KEY = "auth_name";
+export type { AuthState } from "@/pages/auth/store/auth-types";
 
-export function getAuthToken() {
-  return localStorage.getItem(AUTH_TOKEN_KEY) || "";
-}
-
-export function getAuthName() {
-  return localStorage.getItem(AUTH_NAME_KEY) || "";
-}
-
-export function setAuthToken(token: string) {
-  localStorage.setItem(AUTH_TOKEN_KEY, token);
-}
-
-export function setAuthName(name: string) {
-  localStorage.setItem(AUTH_NAME_KEY, name);
-}
-
-export function clearAuth() {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
-  localStorage.removeItem(AUTH_NAME_KEY);
-}
-
-type AuthState = {
-  token: string;
-  username: string;
-  isAuthenticated: boolean;
-  setSession: (username: string, token: string) => void;
-  clearSession: () => void;
-  hydrate: () => void;
-};
-
-export const useAuthStore = create<AuthState>((set) => ({
-  token: getAuthToken(),
-  username: getAuthName(),
-  isAuthenticated: !!getAuthToken(),
-
-  hydrate: () => {
-    const token = getAuthToken();
-    set({ token, username: getAuthName(), isAuthenticated: !!token });
-  },
-
-  setSession: (username, token) => {
-    setAuthToken(token);
-    setAuthName(username);
-    set({ token, username, isAuthenticated: true });
-  },
-
-  clearSession: () => {
-    clearAuth();
-    set({ token: "", username: "", isAuthenticated: false });
-  },
-}));
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (...args) => ({
+      token: "",
+      username: "",
+      email: "",
+      profileImage: "",
+      isAuthenticated: false,
+      ...createAuthSessionSlice(...args),
+      ...createAuthProfileSlice(...args),
+    }),
+    {
+      name: "auth-storage",
+      partialize: (state) => ({
+        token: state.token,
+        username: state.username,
+        email: state.email,
+        profileImage: state.profileImage,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    },
+  ),
+);

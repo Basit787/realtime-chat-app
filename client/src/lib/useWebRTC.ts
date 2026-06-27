@@ -13,7 +13,7 @@ type UseWebRTCOptions = {
   enabled: boolean;
 };
 
-export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
+export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) => {
   const [callPeer, setCallPeer] = useState<CallPeer | null>(null);
   const [incomingCall, setIncomingCall] = useState<CallPeer | null>(null);
   const [inCall, setInCall] = useState(false);
@@ -193,4 +193,4 @@ export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
     rejectCall,
     endCall,
   };
-}
+};

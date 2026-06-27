@@ -6,12 +6,12 @@ import { createApp, registerErrorHandler } from "./app.js";
 import { config } from "./config/index.js";
 import { connectDb } from "./db/index.js";
 import { seedAdmin } from "./db/seed-admin.js";
-import { ensureUploadDir } from "./middleware/upload.js";
+import { objectStorage } from "./services/objectStorage.service.js";
 import { registerRoutes } from "./routes/index.js";
 import { setupSocket } from "./socket/index.js";
 
-async function start() {
-  await Promise.all([connectDb(config.mongodbUri), ensureUploadDir()]);
+const start = async () => {
+  await Promise.all([connectDb(config.mongodbUri), objectStorage.ensureReady()]);
   await seedAdmin(mongoose.connection).catch((err) => console.warn("Seed skipped:", err));
 
   const auth = createAuth(mongoose.connection);
@@ -19,12 +19,12 @@ async function start() {
   const httpServer = createServer(app);
   const io = new Server(httpServer, { cors: { origin: config.corsOrigin } });
 
-  registerRoutes(app, io, auth);
+  registerRoutes(app, io, auth, mongoose.connection);
   setupSocket(io, auth);
   registerErrorHandler(app);
 
   httpServer.listen(config.port, () => console.log(`Chat server http://localhost:${config.port}`));
-}
+};
 
 start().catch((err) => {
   console.error(err);

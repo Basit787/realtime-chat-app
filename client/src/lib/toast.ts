@@ -1,20 +1,65 @@
 import axios from "axios";
 import { toast } from "sonner";
+import { isApiError } from "@/lib/api-errors";
 
-export function getErrorMessage(error: unknown, fallback: string) {
+export const getErrorMessage = (error: unknown, fallback: string) => {
+  if (isApiError(error)) return error.message;
   if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { message?: string } | undefined;
+    const data = error.response?.data as { message?: string; error?: string } | undefined;
     if (typeof data?.message === "string") return data.message;
+    if (typeof data?.error === "string") return data.error;
     return error.message || fallback;
   }
   if (error instanceof Error) return error.message;
   return fallback;
-}
+};
 
-export function toastSuccess(message: string) {
+export const toastSuccess = (message: string) => {
   toast.success(message);
-}
+};
 
-export function toastError(error: unknown, fallback: string) {
+export const toastError = (error: unknown, fallback: string) => {
   toast.error(getErrorMessage(error, fallback));
-}
+};
+
+const DEFAULT_UNDO_MS = 5000;
+
+export const toastWithUndo = (
+  message: string,
+  {
+    onUndo,
+    onCommit,
+    durationMs = DEFAULT_UNDO_MS,
+  }: {
+    onUndo: () => void;
+    onCommit?: () => void | Promise<void>;
+    durationMs?: number;
+  },
+) => {
+  let undone = false;
+  let committed = false;
+
+  const commit = () => {
+    if (undone || committed) return;
+    committed = true;
+    void onCommit?.();
+  };
+
+  const undo = () => {
+    if (committed) return;
+    undone = true;
+    clearTimeout(timer);
+    onUndo();
+  };
+
+  const timer = setTimeout(commit, durationMs);
+
+  toast(message, {
+    duration: durationMs,
+    action: {
+      label: "Undo",
+      onClick: undo,
+    },
+    onDismiss: commit,
+  });
+};

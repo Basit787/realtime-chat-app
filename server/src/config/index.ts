@@ -1,5 +1,7 @@
 import type { AppConfig } from "../types/config.js";
 
+const minioEndpoint = process.env.MINIO_ENDPOINT?.trim() ?? "";
+
 export const config: AppConfig = {
   port: Number(process.env.PORT) || 3004,
   mongodbUri: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/realtime_chat",
@@ -8,6 +10,14 @@ export const config: AppConfig = {
   corsOrigin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:5176", "http://localhost:80"],
   uploadDir: process.env.UPLOAD_DIR || "./uploads",
   maxFileSizeMb: Number(process.env.MAX_FILE_SIZE_MB) || 25,
+  minio: {
+    enabled: !!minioEndpoint,
+    endpoint: minioEndpoint,
+    accessKey: process.env.MINIO_ACCESS_KEY || process.env.MINIO_ROOT_USER || "minioadmin",
+    secretKey: process.env.MINIO_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD || "minioadmin",
+    bucket: process.env.MINIO_BUCKET || "chat-uploads",
+    region: process.env.MINIO_REGION || "us-east-1",
+  },
   turnHost: process.env.TURN_HOST || "localhost",
   turnPort: Number(process.env.TURN_PORT) || 3478,
   turnUser: process.env.TURN_USER || "chat",

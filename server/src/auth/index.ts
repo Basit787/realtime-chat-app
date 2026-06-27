@@ -7,7 +7,7 @@ import { config } from "../config/index.js";
 
 export type AppAuth = ReturnType<typeof createAuth>;
 
-export function createAuth(connection: Connection) {
+export const createAuth = (connection: Connection) => {
   const client = connection.getClient();
 
   return betterAuth({
@@ -20,6 +20,15 @@ export function createAuth(connection: Connection) {
       enabled: true,
       minPasswordLength: 8,
     },
+    user: {
+      changeEmail: {
+        enabled: true,
+        updateEmailWithoutVerification: true,
+      },
+      deleteUser: {
+        enabled: true,
+      },
+    },
     plugins: [
       bearer(),
       admin({
@@ -28,4 +37,4 @@ export function createAuth(connection: Connection) {
       }),
     ],
   });
-}
+};

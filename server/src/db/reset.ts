@@ -3,7 +3,7 @@ import { config } from "../config/index.js";
 import { Message, SharedFile } from "../models/index.js";
 import { connectDb } from "./connect.js";
 
-async function reset() {
+const reset = async () => {
   await connectDb(config.mongodbUri);
   const client = mongoose.connection.getClient();
   const db = client.db();
@@ -19,7 +19,7 @@ async function reset() {
 
   console.log("Database cleared (users, sessions, messages, files)");
   process.exit(0);
-}
+};
 
 reset().catch((err) => {
   console.error(err);

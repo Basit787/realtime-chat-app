@@ -3,74 +3,122 @@ import type { ChatMessageDto, MessageFileDto } from "../types/api.js";
 import type { AuthUser } from "../types/index.js";
 import type { SharedFileDocument } from "../models/SharedFile.js";
 
-function toMessagePayload(message: {
+const toMessagePayload = (message: {
+  id: string;
   room: string;
   user: string;
   text: string;
   type?: "text" | "file";
   file?: MessageFileDto;
+  deleted?: boolean;
   at: Date;
-}): ChatMessageDto {
+}): ChatMessageDto => {
+  const deleted = message.deleted ?? false;
   return {
+    id: message.id,
     room: message.room,
     user: message.user,
-    text: message.text,
-    type: message.type ?? "text",
-    file: message.file,
+    text: deleted ? "" : message.text,
+    type: deleted ? "text" : (message.type ?? "text"),
+    file: deleted ? undefined : message.file,
+    deleted,
     at: message.at.toISOString(),
   };
-}
+};
 
-export class MessageService {
-  async getRoomMessages(room: string): Promise<ChatMessageDto[]> {
-    const messages = await Message.find({ room }).sort({ at: 1 }).limit(200).lean();
-    return messages.map((message) =>
-      toMessagePayload({
-        room: message.room,
-        user: message.user,
-        text: message.text,
-        type: message.type,
-        file: message.file,
-        at: message.at,
-      }),
-    );
-  }
+const getRoomMessages = async (room: string): Promise<ChatMessageDto[]> => {
+  const messages = await Message.find({ room }).sort({ at: 1 }).limit(200).lean();
+  return messages.map((message) =>
+    toMessagePayload({
+      id: message._id.toString(),
+      room: message.room,
+      user: message.user,
+      text: message.text,
+      type: message.type,
+      file: message.file,
+      deleted: message.deleted,
+      at: message.at,
+    }),
+  );
+};
 
-  async createMessage(room: string, userId: string, username: string, text: string): Promise<ChatMessageDto> {
-    const at = new Date();
-    await Message.create({ room, user: username, userId, type: "text", text, at });
-    return toMessagePayload({ room, user: username, text, type: "text", at });
-  }
+const createMessage = async (
+  room: string,
+  userId: string,
+  username: string,
+  text: string,
+): Promise<ChatMessageDto> => {
+  const at = new Date();
+  const doc = await Message.create({ room, user: username, userId, type: "text", text, at });
+  return toMessagePayload({
+    id: doc._id.toString(),
+    room,
+    user: username,
+    text,
+    type: "text",
+    at,
+  });
+};
 
-  async createFileMessage(
-    room: string,
-    user: AuthUser,
-    sharedFile: SharedFileDocument,
-    caption?: string,
-  ): Promise<ChatMessageDto> {
-    const at = new Date();
-    const fileMeta: MessageFileDto = {
-      id: sharedFile._id.toString(),
-      name: sharedFile.originalName,
-      mimeType: sharedFile.mimeType,
-      size: sharedFile.size,
-    };
-    const text = caption?.trim() || sharedFile.originalName;
-    await Message.create({
-      room,
-      user: user.username,
-      userId: user.id,
-      type: "file",
-      text,
-      file: fileMeta,
-      at,
-    });
-    return toMessagePayload({ room, user: user.username, text, type: "file", file: fileMeta, at });
-  }
+const createFileMessage = async (
+  room: string,
+  user: AuthUser,
+  sharedFile: SharedFileDocument,
+  caption?: string,
+): Promise<ChatMessageDto> => {
+  const at = new Date();
+  const fileMeta: MessageFileDto = {
+    id: sharedFile._id.toString(),
+    name: sharedFile.originalName,
+    mimeType: sharedFile.mimeType,
+    size: sharedFile.size,
+  };
+  const text = caption?.trim() || sharedFile.originalName;
+  const doc = await Message.create({
+    room,
+    user: user.username,
+    userId: user.id,
+    type: "file",
+    text,
+    file: fileMeta,
+    at,
+  });
+  return toMessagePayload({
+    id: doc._id.toString(),
+    room,
+    user: user.username,
+    text,
+    type: "file",
+    file: fileMeta,
+    at,
+  });
+};
 
-  async deleteMessage(id: string): Promise<void> {
-    await Message.findByIdAndDelete(id);
-  }
-}
+const getMessageById = async (id: string) => Message.findById(id).lean();
 
-export const messageService = new MessageService();
+const deleteMessage = async (id: string): Promise<ChatMessageDto | null> => {
+  const doc = await Message.findByIdAndUpdate(
+    id,
+    { deleted: true, type: "text", file: undefined },
+    { new: true },
+  ).lean();
+  if (!doc) return null;
+  return toMessagePayload({
+    id: doc._id.toString(),
+    room: doc.room,
+    user: doc.user,
+    text: doc.text,
+    type: doc.type,
+    file: doc.file,
+    deleted: doc.deleted,
+    at: doc.at,
+  });
+};
+
+export const messageService = {
+  getRoomMessages,
+  createMessage,
+  createFileMessage,
+  getMessageById,
+  deleteMessage,
+};

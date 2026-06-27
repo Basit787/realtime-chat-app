@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { ZodSchema } from "zod";
 import { catchMiddleware } from "../utils/catchMiddleware.js";
 
-function validateBodyHandler<T>(schema: ZodSchema<T>) {
+const validateBodyHandler = <T>(schema: ZodSchema<T>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = schema.safeParse(req.body);
@@ -16,9 +16,9 @@ function validateBodyHandler<T>(schema: ZodSchema<T>) {
       throw new Error(error instanceof Error ? error.message : "Failed to validate request body");
     }
   };
-}
+};
 
-function validateParamsHandler<T>(schema: ZodSchema<T>) {
+const validateParamsHandler = <T>(schema: ZodSchema<T>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = schema.safeParse(req.params);
@@ -32,12 +32,8 @@ function validateParamsHandler<T>(schema: ZodSchema<T>) {
       throw new Error(error instanceof Error ? error.message : "Failed to validate request params");
     }
   };
-}
+};
 
-export function validateBody<T>(schema: ZodSchema<T>) {
-  return catchMiddleware(validateBodyHandler(schema));
-}
+export const validateBody = <T>(schema: ZodSchema<T>) => catchMiddleware(validateBodyHandler(schema));
 
-export function validateParams<T>(schema: ZodSchema<T>) {
-  return catchMiddleware(validateParamsHandler(schema));
-}
+export const validateParams = <T>(schema: ZodSchema<T>) => catchMiddleware(validateParamsHandler(schema));

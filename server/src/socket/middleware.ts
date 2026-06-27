@@ -2,7 +2,7 @@ import type { Socket } from "socket.io";
 import type { AppAuth } from "../auth/index.js";
 import { getBearerHeaders, getSessionUser } from "../auth/session.js";
 
-export function createSocketAuth(auth: AppAuth) {
+export const createSocketAuth = (auth: AppAuth) => {
   return async (socket: Socket, next: (err?: Error) => void): Promise<void> => {
     try {
       const token = socket.handshake.auth.token as string | undefined;
@@ -21,4 +21,4 @@ export function createSocketAuth(auth: AppAuth) {
       next(new Error(error instanceof Error ? error.message : "Socket authentication failed"));
     }
   };
-}
+};

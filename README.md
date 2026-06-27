@@ -19,9 +19,30 @@ Or:
 | **UI** | http://localhost:5176 |
 | **API** (direct) | http://localhost:3004 |
 | **MongoDB** | localhost:27018 |
+| **MinIO API** | http://localhost:9000 |
+| **MinIO Console** | http://localhost:9001 (login: minioadmin / minioadmin) |
 | **TURN/STUN** (coturn) | localhost:3478 |
 
 Copy `.env.example` to `.env` to customize secrets and TURN settings.
+
+## Development (live reload)
+
+`make` / `./up.sh` starts Docker with **hot reload** — edit `client/src` or `server/src` and changes apply without restarting containers.
+
+- **Client:** Vite dev server + HMR on port 5176
+- **Server:** `tsx watch` restarts on file changes
+
+If you add npm dependencies, rebuild app images:
+
+```bash
+make rebuild
+```
+
+For a production-style build (static client, compiled server):
+
+```bash
+make prod
+```
 
 ## Default admin
 
@@ -55,7 +76,7 @@ Register or sign in at http://localhost:5176 → bearer token stored → socket 
 
 ### 5. File sharing
 - Attach files in any conversation (general or DM).
-- Files stored in Docker volume `uploads_data`.
+- Files, profile photos, and group images are stored in **MinIO** (S3-compatible object storage).
 
 ## Architecture
 
@@ -68,10 +89,15 @@ server:3004
   ├─ better-auth  /auth/*
   ├─ REST         /rooms/:room/messages, /rooms/:room/files
   ├─ Socket.io    message, typing, presence, call:*
-  └─ MongoDB      mongo:27017
+  ├─ MongoDB      mongo:27017
+  └─ MinIO        minio:9000 (bucket: chat-uploads)
 
 coturn:3478       STUN/TURN for WebRTC
+minio:9000        Object storage (files, avatars, group images)
+minio:9001        MinIO web console
 ```
+
+Without Docker, the server falls back to local `./uploads` when `MINIO_ENDPOINT` is not set.
 
 ## WebRTC / TURN
 
