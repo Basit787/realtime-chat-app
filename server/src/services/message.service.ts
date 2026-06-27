@@ -4,6 +4,7 @@ import type { AuthUser } from "../types/index.js";
 import type { SharedFileDocument } from "../models/SharedFile.js";
 
 function toMessagePayload(message: {
+  room: string;
   user: string;
   text: string;
   type?: "text" | "file";
@@ -11,6 +12,7 @@ function toMessagePayload(message: {
   at: Date;
 }): ChatMessageDto {
   return {
+    room: message.room,
     user: message.user,
     text: message.text,
     type: message.type ?? "text",
@@ -24,6 +26,7 @@ export class MessageService {
     const messages = await Message.find({ room }).sort({ at: 1 }).limit(200).lean();
     return messages.map((message) =>
       toMessagePayload({
+        room: message.room,
         user: message.user,
         text: message.text,
         type: message.type,
@@ -36,7 +39,7 @@ export class MessageService {
   async createMessage(room: string, userId: string, username: string, text: string): Promise<ChatMessageDto> {
     const at = new Date();
     await Message.create({ room, user: username, userId, type: "text", text, at });
-    return toMessagePayload({ user: username, text, type: "text", at });
+    return toMessagePayload({ room, user: username, text, type: "text", at });
   }
 
   async createFileMessage(
@@ -62,7 +65,7 @@ export class MessageService {
       file: fileMeta,
       at,
     });
-    return toMessagePayload({ user: user.username, text, type: "file", file: fileMeta, at });
+    return toMessagePayload({ room, user: user.username, text, type: "file", file: fileMeta, at });
   }
 
   async deleteMessage(id: string): Promise<void> {

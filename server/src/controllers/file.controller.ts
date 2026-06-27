@@ -3,6 +3,7 @@ import type { Server } from "socket.io";
 import { fileService } from "../services/file.service.js";
 import { messageService } from "../services/message.service.js";
 import type { ApiErrorResponse, ChatMessageDto } from "../types/api.js";
+import { canAccessRoom } from "../utils/room.js";
 
 export async function uploadFile(
   req: Request,
@@ -12,6 +13,10 @@ export async function uploadFile(
   const room = req.params.room as string;
   if (!req.file || !req.user) {
     res.status(400).json({ error: "No file uploaded" });
+    return;
+  }
+  if (!canAccessRoom(room, req.user.username)) {
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
   const sharedFile = await fileService.saveUploadedFile(room, req.user, req.file);
@@ -24,6 +29,10 @@ export async function uploadFile(
 export async function downloadFile(req: Request, res: Response): Promise<void> {
   const room = req.params.room as string;
   const id = req.params.id as string;
+  if (!req.user || !canAccessRoom(room, req.user.username)) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
   const sharedFile = await fileService.getSharedFile(room, id);
   if (!sharedFile) {
     res.status(404).json({ error: "File not found" });

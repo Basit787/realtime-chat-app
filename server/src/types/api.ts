@@ -8,6 +8,7 @@ export interface MessageFileDto {
 export type MessageType = "text" | "file";
 
 export interface ChatMessageDto {
+  room: string;
   user: string;
   text: string;
   type: MessageType;

@@ -2,9 +2,17 @@ import type { Request, Response } from "express";
 import type { Server } from "socket.io";
 import { messageService } from "../services/message.service.js";
 import type { MessagesResponse, OkResponse } from "../types/api.js";
+import { canAccessRoom } from "../utils/room.js";
 
 export async function getMessages(req: Request, res: Response<MessagesResponse>): Promise<void> {
   const room = req.params.room as string;
+  const username = req.user!.username;
+
+  if (!canAccessRoom(room, username)) {
+    res.status(403).json({ error: "Forbidden" } as MessagesResponse & { error: string });
+    return;
+  }
+
   const messages = await messageService.getRoomMessages(room);
   res.json({ messages });
 }

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import type { CallType } from "@/lib/api";
+import type { CallType } from "@/pages/chat/api/api";
 
 type CallPeer = { username: string; callType: CallType };
 
@@ -34,7 +34,7 @@ export function CallOverlay({
   if (!incomingCall && !inCall) return null;
 
   return (
-    <div className="absolute inset-x-0 top-[73px] z-20 mx-5 rounded-xl border border-border/60 bg-card/95 p-4 backdrop-blur-sm">
+    <div className="absolute inset-x-0 top-[73px] z-20 mx-5 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-lg backdrop-blur-sm">
       {incomingCall && !inCall && (
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm">
@@ -54,15 +54,21 @@ export function CallOverlay({
       {inCall && (
         <>
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-medium">In call with {callPeer?.username}</p>
+            <p className="text-sm font-medium">
+              {callPeer?.callType === "video" ? "Video" : "Audio"} call with {callPeer?.username}
+            </p>
             <Button size="sm" variant="destructive" onClick={onEnd}>
               End call
             </Button>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <video ref={localVideoRef} autoPlay muted playsInline className="aspect-video rounded-lg bg-black" />
-            <video ref={remoteVideoRef} autoPlay playsInline className="aspect-video rounded-lg bg-black" />
-          </div>
+          {callPeer?.callType === "video" ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <video ref={localVideoRef} autoPlay muted playsInline className="aspect-video rounded-lg bg-muted" />
+              <video ref={remoteVideoRef} autoPlay playsInline className="aspect-video rounded-lg bg-muted" />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Audio call in progress…</p>
+          )}
         </>
       )}
     </div>

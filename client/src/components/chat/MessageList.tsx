@@ -3,8 +3,8 @@ import { format, isToday, isYesterday } from "date-fns";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { formatFileSize, formatMessageTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/lib/api";
-import { downloadFile, ROOM } from "@/lib/api";
+import type { ChatMessage } from "@/pages/chat/api/api";
+import { downloadFile } from "@/pages/chat/api/api";
 
 type MessageBubbleProps = {
   message: ChatMessage;
@@ -16,7 +16,7 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
   const handleFileDownload = async () => {
     if (!message.file) return;
     try {
-      const blob = await downloadFile(ROOM, message.file.id);
+      const blob = await downloadFile(message.room, message.file.id);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -41,7 +41,7 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
           className={cn(
             "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
             isOwn
-              ? "rounded-br-md bg-chat-outgoing text-white"
+              ? "rounded-br-md bg-chat-outgoing text-primary-foreground"
               : "rounded-bl-md bg-chat-incoming text-foreground",
           )}
         >
@@ -55,14 +55,12 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
           )}
           {isOwn && (
             <div className="mt-1 flex items-center justify-end gap-1">
-              <span className="text-[10px] text-white/70">{formatMessageTime(message.at)}</span>
+              <span className="text-[10px] text-primary-foreground/70">{formatMessageTime(message.at)}</span>
               <CheckCheck className="h-3.5 w-3.5 text-primary-foreground/80" />
             </div>
           )}
         </div>
-        {!isOwn && (
-          <span className="px-1 text-[10px] text-muted-foreground">{formatMessageTime(message.at)}</span>
-        )}
+        {!isOwn && <span className="px-1 text-[10px] text-muted-foreground">{formatMessageTime(message.at)}</span>}
       </div>
     </div>
   );

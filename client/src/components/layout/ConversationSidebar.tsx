@@ -1,5 +1,6 @@
-import { Hash, LogOut, Palette, Search, Settings, SquarePen } from "lucide-react";
+import { Hash, LogOut, Palette, Search, SquarePen } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import {
@@ -8,9 +9,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { ConversationItem } from "@/components/chat/ConversationItem";
-import { buildConversations, useChatStore, type UserStatus } from "@/stores/chat-store";
-import { useAuthStore } from "@/stores/auth-store";
+import { buildConversations, useChatStore, type UserStatus } from "@/pages/chat/store/chat-store";
+import { useAuthStore } from "@/pages/auth/store/auth-store";
 import { cn } from "@/lib/utils";
 
 type ConversationSidebarProps = {
@@ -20,7 +22,7 @@ type ConversationSidebarProps = {
 const STATUS_OPTIONS: { value: UserStatus; label: string; color: string }[] = [
   { value: "online", label: "Online", color: "bg-online" },
   { value: "away", label: "Away", color: "bg-amber-400" },
-  { value: "busy", label: "Busy", color: "bg-red-500" },
+  { value: "busy", label: "Busy", color: "bg-destructive" },
   { value: "offline", label: "Offline", color: "bg-muted-foreground/50" },
 ];
 
@@ -42,8 +44,8 @@ export function ConversationSidebar({ onLogout }: ConversationSidebarProps) {
   const currentStatus = STATUS_OPTIONS.find((s) => s.value === userStatus) ?? STATUS_OPTIONS[0];
 
   return (
-    <aside className="flex w-full max-w-[320px] shrink-0 flex-col border-r border-border/50 bg-sidebar md:w-[300px] lg:w-[320px]">
-      <div className="flex items-center justify-between gap-2 border-b border-border/50 px-4 py-4">
+    <aside className="flex w-full max-w-[320px] shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground md:w-[300px] lg:w-[320px]">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-4">
         <div className="flex items-center gap-3">
           <UserAvatar name={username} showOnline online />
           <div>
@@ -51,13 +53,9 @@ export function ConversationSidebar({ onLogout }: ConversationSidebarProps) {
             <p className="text-xs text-muted-foreground">@{username}</p>
           </div>
         </div>
-        <button
-          type="button"
-          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="New chat"
-        >
+        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" aria-label="New chat">
           <SquarePen className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       <div className="px-4 py-3">
@@ -67,7 +65,7 @@ export function ConversationSidebar({ onLogout }: ConversationSidebarProps) {
             placeholder="Search conversations"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 rounded-xl border-border/60 bg-input pl-9 text-sm"
+            className="h-10 rounded-xl bg-input pl-9 text-sm"
           />
         </div>
       </div>
@@ -86,8 +84,8 @@ export function ConversationSidebar({ onLogout }: ConversationSidebarProps) {
                     <Hash className="h-4 w-4 text-primary" />
                   </div>
                 ) : conversation.type === "group" ? (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/20">
-                    <Palette className="h-4 w-4 text-violet-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent">
+                    <Palette className="h-4 w-4 text-accent-foreground" />
                   </div>
                 ) : undefined
               }
@@ -96,16 +94,13 @@ export function ConversationSidebar({ onLogout }: ConversationSidebarProps) {
         </div>
       </ScrollArea>
 
-      <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
+      <div className="flex items-center justify-between border-t border-border px-4 py-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
+            <Button type="button" variant="ghost" size="sm" className="gap-2 px-2 text-muted-foreground">
               <span className={cn("h-2 w-2 rounded-full", currentStatus.color)} />
               {currentStatus.label}
-            </button>
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             {STATUS_OPTIONS.map((option) => (
@@ -117,22 +112,12 @@ export function ConversationSidebar({ onLogout }: ConversationSidebarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <button
-          type="button"
-          onClick={onLogout}
-          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Logout"
-        >
-          <LogOut className="h-4 w-4" />
-        </button>
-
-        <button
-          type="button"
-          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Settings"
-        >
-          <Settings className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onLogout} aria-label="Logout">
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </aside>
   );

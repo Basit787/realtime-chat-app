@@ -9,32 +9,31 @@ const answerSchema = signalTargetSchema.extend({ sdp: z.unknown() });
 const iceSchema = signalTargetSchema.extend({ candidate: z.unknown() });
 const inviteSchema = signalTargetSchema.extend({ callType: callTypeSchema });
 
-function findSocketByUsername(io: Server, room: string, username: string): Socket | null {
+function findSocketByUsername(io: Server, username: string): Socket | null {
   for (const [, peer] of io.sockets.sockets) {
-    if (peer.data.user?.username === username && peer.rooms.has(room)) return peer;
+    if (peer.data.user?.username === username) return peer;
   }
   return null;
 }
 
 function relayToUser(
   io: Server,
-  room: string,
   from: SocketUser,
   to: string,
   event: string,
   payload: Record<string, unknown>,
 ): boolean {
-  const target = findSocketByUsername(io, room, to);
+  const target = findSocketByUsername(io, to);
   if (!target) return false;
   target.emit(event, { from: from.username, ...payload });
   return true;
 }
 
-export function registerCallHandlers(io: Server, socket: Socket, room: string, user: SocketUser): void {
+export function registerCallHandlers(io: Server, socket: Socket, user: SocketUser): void {
   socket.on("call:invite", (data: unknown) => {
     const parsed = inviteSchema.safeParse(data);
     if (!parsed.success || parsed.data.to === user.username) return;
-    relayToUser(io, room, user, parsed.data.to, "call:incoming", {
+    relayToUser(io, user, parsed.data.to, "call:incoming", {
       callType: parsed.data.callType,
     });
   });
@@ -42,30 +41,30 @@ export function registerCallHandlers(io: Server, socket: Socket, room: string, u
   socket.on("call:offer", (data: unknown) => {
     const parsed = offerSchema.safeParse(data);
     if (!parsed.success) return;
-    relayToUser(io, room, user, parsed.data.to, "call:offer", { sdp: parsed.data.sdp });
+    relayToUser(io, user, parsed.data.to, "call:offer", { sdp: parsed.data.sdp });
   });
 
   socket.on("call:answer", (data: unknown) => {
     const parsed = answerSchema.safeParse(data);
     if (!parsed.success) return;
-    relayToUser(io, room, user, parsed.data.to, "call:answer", { sdp: parsed.data.sdp });
+    relayToUser(io, user, parsed.data.to, "call:answer", { sdp: parsed.data.sdp });
   });
 
   socket.on("call:ice-candidate", (data: unknown) => {
     const parsed = iceSchema.safeParse(data);
     if (!parsed.success) return;
-    relayToUser(io, room, user, parsed.data.to, "call:ice-candidate", { candidate: parsed.data.candidate });
+    relayToUser(io, user, parsed.data.to, "call:ice-candidate", { candidate: parsed.data.candidate });
   });
 
   socket.on("call:end", (data: unknown) => {
     const parsed = signalTargetSchema.safeParse(data);
     if (!parsed.success) return;
-    relayToUser(io, room, user, parsed.data.to, "call:end", {});
+    relayToUser(io, user, parsed.data.to, "call:end", {});
   });
 
   socket.on("call:reject", (data: unknown) => {
     const parsed = signalTargetSchema.safeParse(data);
     if (!parsed.success) return;
-    relayToUser(io, room, user, parsed.data.to, "call:reject", {});
+    relayToUser(io, user, parsed.data.to, "call:reject", {});
   });
 }

@@ -4,30 +4,29 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { MessageList } from "@/components/chat/MessageList";
 import { CallOverlay } from "@/components/call/CallOverlay";
-import { useMessages } from "@/hooks/useMessages";
-import { useSocket } from "@/hooks/useSocket";
-import { useWebRTC } from "@/hooks/useWebRTC";
-import { filterMessagesForConversation, useChatStore } from "@/stores/chat-store";
-import { useAuthStore } from "@/stores/auth-store";
+import { useChat } from "@/pages/chat/api/hooks";
+import { useSocket } from "@/lib/useSocket";
+import { useWebRTC } from "@/lib/useWebRTC";
+import { messagesForConversation, useChatStore } from "@/pages/chat/store/chat-store";
+import { useAuthStore } from "@/pages/auth/store/auth-store";
 
 export function ChatWindow() {
   const username = useAuthStore((s) => s.username);
   const messages = useChatStore((s) => s.messages);
   const activeConversationId = useChatStore((s) => s.activeConversationId);
 
-  useMessages();
+  useChat();
   const socket = useSocket();
   const webrtc = useWebRTC({ socket, selfUsername: username, enabled: !!socket });
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const visibleMessages = useMemo(
-    () => filterMessagesForConversation(messages, activeConversationId, username),
+    () => messagesForConversation(messages, activeConversationId, username),
     [messages, activeConversationId, username],
   );
 
-  const callPeer =
-    activeConversationId !== "general" ? activeConversationId : null;
+  const callPeer = activeConversationId !== "general" ? activeConversationId : null;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -1,5 +1,5 @@
 import { AuthPage, ChatPage } from "@/pages";
-import { useAuthStore } from "@/stores/auth-store";
+import { useAuthStore } from "@/pages/auth/store/auth-store";
 
 export default function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);

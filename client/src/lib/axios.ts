@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getAuthToken } from "@/lib/auth-client";
+import { getAuthToken } from "@/pages/auth/store/auth-store";
 
 export const api = axios.create({
   baseURL: "/api",

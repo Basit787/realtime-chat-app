@@ -9,11 +9,13 @@ export interface SocketUser {
 }
 
 export interface PresencePayload {
+  room?: string;
   count: number;
   users: string[];
 }
 
 export interface TypingPayload {
+  room: string;
   username: string;
 }
 

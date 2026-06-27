@@ -13,9 +13,7 @@ export function UserAvatar({ name, className, showOnline, online }: UserAvatarPr
   return (
     <div className={cn("relative shrink-0", className)}>
       <Avatar className="h-10 w-10">
-        <AvatarFallback className={cn("text-xs text-white", getAvatarColor(name))}>
-          {getInitials(name)}
-        </AvatarFallback>
+        <AvatarFallback className={cn("text-xs text-white", getAvatarColor(name))}>{getInitials(name)}</AvatarFallback>
       </Avatar>
       {showOnline && (
         <span

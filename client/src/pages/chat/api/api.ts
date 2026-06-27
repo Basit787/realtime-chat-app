@@ -8,6 +8,7 @@ export type MessageFile = {
 };
 
 export type ChatMessage = {
+  room: string;
   user: string;
   text: string;
   at: string;
@@ -17,7 +18,7 @@ export type ChatMessage = {
 
 export type CallType = "audio" | "video";
 
-export const ROOM = "general";
+export const GENERAL_ROOM = "general";
 
 export async function fetchMessages(room: string) {
   const { data } = await api.get<{ messages: ChatMessage[] }>(`/rooms/${room}/messages`);

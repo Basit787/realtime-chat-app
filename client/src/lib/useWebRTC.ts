@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
-import { fetchIceServers, type CallType } from "@/lib/api";
+import { fetchIceServers, type CallType } from "@/pages/chat/api/api";
 
 type CallPeer = {
   username: string;
@@ -23,11 +23,7 @@ export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const iceServersRef = useRef<RTCIceServer[]>([]);
-  const incomingCallRef = useRef<CallPeer | null>(null);
-
-  useEffect(() => {
-    incomingCallRef.current = incomingCall;
-  }, [incomingCall]);
+  const pendingOfferRef = useRef<{ from: string; sdp: RTCSessionDescriptionInit } | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -49,6 +45,7 @@ export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
     setInCall(false);
     setCallPeer(null);
     setIncomingCall(null);
+    pendingOfferRef.current = null;
   }, []);
 
   const createPeerConnection = useCallback(
@@ -85,7 +82,7 @@ export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
 
   const startCall = useCallback(
     async (peer: string, callType: CallType) => {
-      if (!socket || peer === selfUsername) return;
+      if (!socket || peer === selfUsername || inCall) return;
       try {
         setCallPeer({ username: peer, callType });
         const pc = createPeerConnection(peer);
@@ -100,17 +97,26 @@ export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
         cleanupCall();
       }
     },
-    [attachLocalMedia, cleanupCall, createPeerConnection, selfUsername, socket],
+    [attachLocalMedia, cleanupCall, createPeerConnection, inCall, selfUsername, socket],
   );
 
   const acceptCall = useCallback(async () => {
     if (!socket || !incomingCall) return;
+    const offer = pendingOfferRef.current;
+    if (!offer || offer.from !== incomingCall.username) return;
+
     try {
       const peer = incomingCall.username;
       setCallPeer(incomingCall);
       setIncomingCall(null);
+      pendingOfferRef.current = null;
+
       const pc = createPeerConnection(peer);
       await attachLocalMedia(incomingCall.callType);
+      await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("call:answer", { to: peer, sdp: answer });
       setInCall(true);
     } catch (error) {
       console.error(error);
@@ -123,6 +129,7 @@ export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
       socket.emit("call:reject", { to: incomingCall.username });
     }
     setIncomingCall(null);
+    pendingOfferRef.current = null;
   }, [incomingCall, socket]);
 
   const endCall = useCallback(() => {
@@ -136,24 +143,15 @@ export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
     if (!socket) return;
 
     const onIncoming = ({ from, callType }: { from: string; callType: CallType }) => {
+      if (inCall) {
+        socket.emit("call:reject", { to: from });
+        return;
+      }
       setIncomingCall({ username: from, callType });
     };
 
-    const onOffer = async ({ from, sdp }: { from: string; sdp: RTCSessionDescriptionInit }) => {
-      if (!pcRef.current) {
-        const callType = incomingCallRef.current?.callType ?? "video";
-        setCallPeer({ username: from, callType });
-        createPeerConnection(from);
-        await attachLocalMedia(callType);
-        setInCall(true);
-        setIncomingCall(null);
-      }
-      await pcRef.current?.setRemoteDescription(new RTCSessionDescription(sdp));
-      const answer = await pcRef.current?.createAnswer();
-      if (answer) {
-        await pcRef.current?.setLocalDescription(answer);
-        socket.emit("call:answer", { to: from, sdp: answer });
-      }
+    const onOffer = ({ from, sdp }: { from: string; sdp: RTCSessionDescriptionInit }) => {
+      pendingOfferRef.current = { from, sdp };
     };
 
     const onAnswer = async ({ sdp }: { sdp: RTCSessionDescriptionInit }) => {
@@ -182,7 +180,7 @@ export function useWebRTC({ socket, selfUsername, enabled }: UseWebRTCOptions) {
       socket.off("call:end", onEnd);
       socket.off("call:reject", onReject);
     };
-  }, [attachLocalMedia, cleanupCall, createPeerConnection, socket]);
+  }, [cleanupCall, inCall, socket]);
 
   return {
     callPeer,

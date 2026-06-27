@@ -1,30 +1,102 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-background: oklch(0.1 0.015 240);
-  --color-foreground: oklch(0.98 0.01 220);
-  --color-card: oklch(0.14 0.02 235);
-  --color-card-foreground: oklch(0.98 0.01 220);
-  --color-primary: oklch(0.68 0.14 185);
-  --color-primary-foreground: oklch(0.98 0.01 220);
-  --color-muted: oklch(0.2 0.02 235);
-  --color-muted-foreground: oklch(0.65 0.02 235);
-  --color-border: oklch(0.24 0.02 235);
-  --color-input: oklch(0.18 0.02 235);
-  --color-ring: oklch(0.68 0.14 185);
-  --color-destructive: oklch(0.6 0.2 25);
-  --color-accent: oklch(0.55 0.12 185);
-  --color-sidebar: oklch(0.12 0.02 235);
-  --color-chat-incoming: oklch(0.22 0.02 235);
-  --color-chat-outgoing: oklch(0.45 0.1 195);
-  --color-online: oklch(0.72 0.19 145);
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.99 0.005 220);
+  --foreground: oklch(0.15 0.02 240);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.02 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.02 240);
+  --primary: oklch(0.55 0.14 185);
+  --primary-foreground: oklch(0.99 0.01 220);
+  --secondary: oklch(0.96 0.01 220);
+  --secondary-foreground: oklch(0.25 0.02 240);
+  --muted: oklch(0.96 0.01 220);
+  --muted-foreground: oklch(0.5 0.02 235);
+  --accent: oklch(0.94 0.02 185);
+  --accent-foreground: oklch(0.25 0.02 240);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.9 0.01 220);
+  --input: oklch(0.94 0.01 220);
+  --ring: oklch(0.55 0.14 185);
+  --sidebar: oklch(0.98 0.005 220);
+  --sidebar-foreground: oklch(0.15 0.02 240);
+  --chat-incoming: oklch(0.94 0.01 220);
+  --chat-outgoing: oklch(0.55 0.14 185);
+  --online: oklch(0.65 0.19 145);
 }
 
-body {
-  @apply bg-background text-foreground antialiased;
+.dark {
+  --background: oklch(0.1 0.015 240);
+  --foreground: oklch(0.98 0.01 220);
+  --card: oklch(0.14 0.02 235);
+  --card-foreground: oklch(0.98 0.01 220);
+  --popover: oklch(0.14 0.02 235);
+  --popover-foreground: oklch(0.98 0.01 220);
+  --primary: oklch(0.68 0.14 185);
+  --primary-foreground: oklch(0.98 0.01 220);
+  --secondary: oklch(0.2 0.02 235);
+  --secondary-foreground: oklch(0.98 0.01 220);
+  --muted: oklch(0.2 0.02 235);
+  --muted-foreground: oklch(0.65 0.02 235);
+  --accent: oklch(0.22 0.03 185);
+  --accent-foreground: oklch(0.98 0.01 220);
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.98 0.01 220);
+  --border: oklch(0.24 0.02 235);
+  --input: oklch(0.18 0.02 235);
+  --ring: oklch(0.68 0.14 185);
+  --sidebar: oklch(0.12 0.02 235);
+  --sidebar-foreground: oklch(0.98 0.01 220);
+  --chat-incoming: oklch(0.22 0.02 235);
+  --chat-outgoing: oklch(0.45 0.1 195);
+  --online: oklch(0.72 0.19 145);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-chat-incoming: var(--chat-incoming);
+  --color-chat-outgoing: var(--chat-outgoing);
+  --color-online: var(--online);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: oklch(0.3 0.02 235) transparent;
+  scrollbar-color: var(--border) transparent;
 }

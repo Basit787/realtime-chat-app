@@ -37,6 +37,9 @@ services:
       MONGODB_URI: mongodb://mongo:27017/realtime_chat
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-secret-change-me}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5176}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@chat.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
+      ADMIN_NAME: ${ADMIN_NAME:-admin}
       UPLOAD_DIR: /data/uploads
       MAX_FILE_SIZE_MB: "25"
       TURN_HOST: ${TURN_HOST:-localhost}

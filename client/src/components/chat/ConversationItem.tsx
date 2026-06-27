@@ -1,7 +1,7 @@
 import { formatConversationTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import type { Conversation } from "@/stores/chat-store";
+import type { Conversation } from "@/pages/chat/store/chat-store";
 
 type ConversationItemProps = {
   conversation: Conversation;
@@ -17,16 +17,12 @@ export function ConversationItem({ conversation, active, onClick, icon }: Conver
       onClick={onClick}
       className={cn(
         "relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
-        active ? "bg-primary/10" : "hover:bg-muted/60",
+        active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
       )}
     >
       {active && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-primary" />}
       {icon ?? (
-        <UserAvatar
-          name={conversation.name}
-          showOnline={conversation.type === "dm"}
-          online={conversation.online}
-        />
+        <UserAvatar name={conversation.name} showOnline={conversation.type === "dm"} online={conversation.online} />
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
