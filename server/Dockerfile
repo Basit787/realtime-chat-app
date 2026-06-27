@@ -13,7 +13,6 @@ RUN pnpm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
-RUN mkdir -p /data/uploads
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/dist ./dist

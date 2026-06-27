@@ -44,7 +44,7 @@ export const ProfilePhotoEditor = ({ username, userStatus }: ProfilePhotoEditorP
           imageUrl={profileImage}
           showOnline
           status={userStatus}
-          className="h-24 w-24 [&_span]:h-24 [&_span]:w-24 [&_span]:text-2xl"
+          avatarClassName="h-24 w-24 [&_span]:text-2xl"
         />
         <Button
           type="button"

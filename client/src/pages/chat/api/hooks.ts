@@ -19,6 +19,7 @@ import {
 } from "@/pages/chat/api/api";
 import { fetchPresenceStatus } from "@/pages/auth/api/api";
 import { conversationToRoom } from "@/lib/rooms";
+import { normalizeAvatarUrl } from "@/lib/avatar-url";
 import { useMutationToast } from "@/lib/use-mutation-toast";
 import { useChatStore } from "@/pages/chat/store/chat-store";
 import { useAuthStore } from "@/pages/auth/store/auth-store";
@@ -30,6 +31,7 @@ export const useChat = () => {
   const mergeCallHistory = useChatStore((s) => s.mergeCallHistory);
   const setGroups = useChatStore((s) => s.setGroups);
   const setKnownContacts = useChatStore((s) => s.setKnownContacts);
+  const mergeUserProfileImages = useChatStore((s) => s.mergeUserProfileImages);
   const mergeUserStatuses = useChatStore((s) => s.mergeUserStatuses);
   const setUserStatus = useChatStore((s) => s.setUserStatus);
   const room = conversationToRoom(activeConversationId, username);
@@ -77,8 +79,14 @@ export const useChat = () => {
   }, [groups.data, setGroups]);
 
   useEffect(() => {
-    if (contacts.data) setKnownContacts(contacts.data);
-  }, [contacts.data, setKnownContacts]);
+    if (!contacts.data) return;
+    setKnownContacts(contacts.data.map((contact) => contact.name));
+    mergeUserProfileImages(
+      Object.fromEntries(
+        contacts.data.map((contact) => [contact.name, normalizeAvatarUrl(contact.image) ?? contact.image]),
+      ),
+    );
+  }, [contacts.data, mergeUserProfileImages, setKnownContacts]);
 
   useEffect(() => {
     if (!presenceStatus.data || !username) return;
@@ -172,11 +180,15 @@ export const useUploadFile = (room: string): UseMutationResult<
   { file: File; caption?: string }
 > => {
   const addMessage = useChatStore((s) => s.addMessage);
+  const setMessageStatus = useChatStore((s) => s.setMessageStatus);
   const { onErrorNotification } = useMutationToast();
 
   return useMutation({
     mutationFn: ({ file, caption }) => uploadFile(room, file, caption),
-    onSuccess: (message) => addMessage(message),
+    onSuccess: (message) => {
+      addMessage(message);
+      if (message.id) setMessageStatus(message.id, "sent");
+    },
     onError: (err) => onErrorNotification(err, "Could not upload file"),
   });
 };

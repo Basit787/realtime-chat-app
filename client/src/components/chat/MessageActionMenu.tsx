@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Copy, Download, Forward, Reply, Trash2 } from "lucide-react";
+import { Copy, Download, Forward, Reply, SquareCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type MessageAction = "reply" | "copy" | "forward" | "download" | "delete-me" | "delete-all";
+export type MessageAction = "reply" | "copy" | "forward" | "download" | "select" | "delete-me" | "delete-all";
 
 type MessageActionMenuProps = {
   open: boolean;
@@ -19,6 +19,7 @@ type MessageActionMenuProps = {
 
 const ACTIONS: { id: MessageAction; label: string; icon: typeof Reply; destructive?: boolean }[] = [
   { id: "reply", label: "Reply", icon: Reply },
+  { id: "select", label: "Select", icon: SquareCheck },
   { id: "copy", label: "Copy", icon: Copy },
   { id: "forward", label: "Forward", icon: Forward },
   { id: "download", label: "Download", icon: Download },

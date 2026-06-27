@@ -85,6 +85,11 @@ export interface ChatGroupsResponse {
   groups: ChatGroupDto[];
 }
 
+export interface ContactDto {
+  name: string;
+  image: string;
+}
+
 export interface ContactsResponse {
-  contacts: string[];
+  contacts: ContactDto[];
 }

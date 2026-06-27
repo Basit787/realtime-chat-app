@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import type { Connection } from "mongoose";
-import type { ApiErrorResponse, ContactsResponse } from "../types/api.js";
+import type { ApiErrorResponse, ContactDto, ContactsResponse } from "../types/api.js";
 import { createContactsService } from "../services/contacts.service.js";
 import { HttpError } from "../utils/httpError.js";
 
@@ -14,7 +14,7 @@ export const createContactsController = (connection: Connection) => {
           throw new HttpError(401, "Unauthorized");
         }
 
-        const contacts = await contactsService.getKnownContacts(req.user.username);
+        const contacts = await contactsService.getKnownContactProfiles(req.user.username);
         res.json({ contacts });
       } catch (error) {
         if (error instanceof HttpError) throw error;

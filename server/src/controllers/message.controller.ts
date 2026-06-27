@@ -5,6 +5,8 @@ import type { ApiErrorResponse, MessagesResponse, OkResponse } from "../types/ap
 import { ROLES } from "../types/role.js";
 import { canAccessRoom } from "../services/roomAccess.service.js";
 import { HttpError } from "../utils/httpError.js";
+import { dmRoomsMatch } from "../utils/room.js";
+import { emitToRoomParticipants } from "../socket/roomEmit.js";
 
 export const getMessages = async (req: Request, res: Response<MessagesResponse>): Promise<void> => {
   try {
@@ -38,7 +40,7 @@ export const deleteMessage = async (
     }
 
     const message = await messageService.getMessageById(id);
-    if (!message || message.room !== room) {
+    if (!message || (!dmRoomsMatch(message.room, room) && message.room !== room)) {
       throw new HttpError(404, "Message not found");
     }
 
@@ -57,7 +59,7 @@ export const deleteMessage = async (
       throw new HttpError(404, "Message not found");
     }
 
-    io.to(room).emit("message_deleted", updated);
+    await emitToRoomParticipants(io, room, "message_deleted", updated);
     res.json({ ok: true });
   } catch (error) {
     if (error instanceof HttpError) throw error;

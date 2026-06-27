@@ -1,9 +1,12 @@
+import type { ChatMessage } from "@/pages/chat/api/api";
 import type { StateCreator } from "zustand";
 import type { ChatState } from "@/pages/chat/store/chat-types";
 
-export type ChatComposeSlice = Pick<ChatState, "setReplyTo" | "setForwardMessage">;
+export type ChatComposeSlice = Pick<ChatState, "setReplyTo" | "setForwardMessage" | "setForwardBatch" | "forwardBatch">;
 
 export const createChatComposeSlice: StateCreator<ChatState, [], [], ChatComposeSlice> = (set) => ({
-  setReplyTo: (message) => set({ replyTo: message, forwardMessage: null }),
-  setForwardMessage: (message) => set({ forwardMessage: message, replyTo: null }),
+  forwardBatch: [],
+  setReplyTo: (message) => set({ replyTo: message, forwardMessage: null, forwardBatch: [] }),
+  setForwardMessage: (message) => set({ forwardMessage: message, replyTo: null, forwardBatch: message ? [message] : [] }),
+  setForwardBatch: (messages) => set({ forwardBatch: messages, forwardMessage: messages[0] ?? null, replyTo: null }),
 });

@@ -44,6 +44,7 @@ export const ConversationSidebar = ({ onLogout }: ConversationSidebarProps) => {
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const sidebarView = useChatStore((s) => s.sidebarView);
   const userStatuses = useChatStore((s) => s.userStatuses);
+  const unreadByConversation = useChatStore((s) => s.unreadByConversation);
   const searchQuery = useChatStore((s) => s.searchQuery);
   const { userStatus, changeStatus } = usePresenceStatus();
   const setActiveConversation = useChatStore((s) => s.setActiveConversation);
@@ -53,7 +54,7 @@ export const ConversationSidebar = ({ onLogout }: ConversationSidebarProps) => {
   const [newDmOpen, setNewDmOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
-  const conversations = buildConversations(messages, onlineUsers, username, groups, callHistory, knownContacts, userStatuses).filter((c) =>
+  const conversations = buildConversations(messages, onlineUsers, username, groups, callHistory, knownContacts, userStatuses, unreadByConversation).filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 

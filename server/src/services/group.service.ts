@@ -71,6 +71,13 @@ const isMember = async (room: string, username: string): Promise<boolean> => {
   return group?.members.includes(username) ?? false;
 };
 
+const getMembersForRoom = async (room: string): Promise<string[] | null> => {
+  const id = parseGroupRoom(room);
+  if (!id) return null;
+  const group = await ChatGroup.findById(id).select("members").lean();
+  return group?.members ?? null;
+};
+
 export const groupService = {
   listForUser,
   getById,
@@ -78,4 +85,5 @@ export const groupService = {
   update,
   setImage,
   isMember,
+  getMembersForRoom,
 };

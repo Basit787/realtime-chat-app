@@ -13,16 +13,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { useUpdateProfileName } from "@/pages/auth/api/profile-hooks";
 import { useAuthStore } from "@/pages/auth/store/auth-store";
+import { displayNameSchema } from "@/lib/display-name";
 import { cn } from "@/lib/utils";
 
 const nameSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Display name is required")
-    .min(2, "Display name must be at least 2 characters")
-    .max(32, "Display name must be at most 32 characters")
-    .regex(/^[a-zA-Z0-9_-]+$/, "Use letters, numbers, underscores, and hyphens only"),
+  name: displayNameSchema,
 });
 
 type NameValues = z.infer<typeof nameSchema>;

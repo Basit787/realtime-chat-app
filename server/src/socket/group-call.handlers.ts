@@ -1,12 +1,14 @@
 import type { Server, Socket } from "socket.io";
 import { z } from "zod";
 import { groupCallService } from "../services/groupCall.service.js";
+import { groupService } from "../services/group.service.js";
 import type { GroupCallState, SocketUser } from "../types/socket.js";
 import { canAccessRoom } from "../services/roomAccess.service.js";
-import { isValidRoom } from "../utils/room.js";
+import { isValidRoom, MAX_ROOM_LENGTH } from "../utils/room.js";
+import { userRoom } from "./roomEmit.js";
 
 const callTypeSchema = z.enum(["audio", "video"]);
-const roomSchema = z.object({ room: z.string().min(1).max(64) });
+const roomSchema = z.object({ room: z.string().min(1).max(MAX_ROOM_LENGTH) });
 const startSchema = roomSchema.extend({ callType: callTypeSchema });
 const relaySchema = roomSchema.extend({
   to: z.string().min(1).max(32),
@@ -35,12 +37,29 @@ const relayToUser = (
   return true;
 };
 
-const emitGroupState = (io: Server, state: GroupCallState) => {
-  io.to(state.room).emit("group-call:state", state);
+const emitGroupIncoming = async (io: Server, state: GroupCallState) => {
+  const members = await groupService.getMembersForRoom(state.room);
+  if (!members) return;
+  for (const member of members) {
+    if (state.participants.includes(member)) continue;
+    io.to(userRoom(member)).emit("group-call:incoming", state);
+  }
 };
 
-const emitGroupEnded = (io: Server, room: string) => {
-  io.to(room).emit("group-call:ended", { room });
+const emitGroupState = async (io: Server, state: GroupCallState) => {
+  const members = await groupService.getMembersForRoom(state.room);
+  if (!members) return;
+  for (const member of members) {
+    io.to(userRoom(member)).emit("group-call:state", state);
+  }
+};
+
+const emitGroupEnded = async (io: Server, room: string) => {
+  const members = await groupService.getMembersForRoom(room);
+  if (!members) return;
+  for (const member of members) {
+    io.to(userRoom(member)).emit("group-call:ended", { room });
+  }
 };
 
 export const registerGroupCallHandlers = (io: Server, socket: Socket, user: SocketUser): void => {
@@ -49,11 +68,11 @@ export const registerGroupCallHandlers = (io: Server, socket: Socket, user: Sock
     if (!parsed.success || !isValidRoom(parsed.data.room) || !(await canAccessRoom(parsed.data.room, user.username))) {
       return;
     }
-    if (!socket.rooms.has(parsed.data.room)) return;
 
     const state = groupCallService.start(parsed.data.room, user.username, parsed.data.callType);
     if (!state) return;
-    emitGroupState(io, state);
+    await emitGroupIncoming(io, state);
+    await emitGroupState(io, state);
   });
 
   socket.on("group-call:join", async (data: unknown) => {
@@ -61,11 +80,10 @@ export const registerGroupCallHandlers = (io: Server, socket: Socket, user: Sock
     if (!parsed.success || !isValidRoom(parsed.data.room) || !(await canAccessRoom(parsed.data.room, user.username))) {
       return;
     }
-    if (!socket.rooms.has(parsed.data.room)) return;
 
     const state = groupCallService.join(parsed.data.room, user.username);
     if (!state) return;
-    emitGroupState(io, state);
+    await emitGroupState(io, state);
   });
 
   socket.on("group-call:leave", (data: unknown) => {
@@ -74,10 +92,10 @@ export const registerGroupCallHandlers = (io: Server, socket: Socket, user: Sock
 
     const state = groupCallService.leave(parsed.data.room, user.username);
     if (!state) {
-      emitGroupEnded(io, parsed.data.room);
+      void emitGroupEnded(io, parsed.data.room);
       return;
     }
-    emitGroupState(io, state);
+    void emitGroupState(io, state);
   });
 
   socket.on("group-call:offer", async (data: unknown) => {
@@ -110,8 +128,8 @@ export const registerGroupCallHandlers = (io: Server, socket: Socket, user: Sock
   socket.on("disconnect", () => {
     const updates = groupCallService.removeUserFromAll(user.username);
     for (const state of updates) {
-      if (state.participants.length === 0) emitGroupEnded(io, state.room);
-      else emitGroupState(io, state);
+      if (state.participants.length === 0) void emitGroupEnded(io, state.room);
+      else void emitGroupState(io, state);
     }
   });
 };

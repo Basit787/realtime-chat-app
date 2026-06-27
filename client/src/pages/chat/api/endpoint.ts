@@ -1,7 +1,7 @@
 export const chatEndpoints = {
-  messages: (room: string) => `/rooms/${room}/messages`,
-  files: (room: string) => `/rooms/${room}/files`,
-  file: (room: string, fileId: string) => `/rooms/${room}/files/${fileId}`,
+  messages: (room: string) => `/rooms/${encodeURIComponent(room)}/messages`,
+  files: (room: string) => `/rooms/${encodeURIComponent(room)}/files`,
+  file: (room: string, fileId: string) => `/rooms/${encodeURIComponent(room)}/files/${fileId}`,
   webrtcConfig: () => "/webrtc/config",
   callHistory: () => "/calls/history",
   groups: () => "/groups",

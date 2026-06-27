@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { useDraggablePanel } from "@/lib/useDraggablePanel";
 import { useCallTimer } from "@/lib/useCallTimer";
+import { useIncomingCallAlerts } from "@/lib/useIncomingCallAlerts";
+import { CallAudioStream } from "@/components/call/CallAudioStream";
 import { cn } from "@/lib/utils";
 import { useChatRoom } from "@/pages/chat/context/ChatRoomContext";
+import { useChatStore } from "@/pages/chat/store/chat-store";
 
 const MINIMIZED_WIDTH = 288;
 const MINIMIZED_HEIGHT = 72;
@@ -51,6 +54,7 @@ const VideoTile = ({
     const el = videoRef.current;
     if (!el) return;
     el.srcObject = stream;
+    if (stream) void el.play().catch(() => {});
   }, [stream]);
 
   return (
@@ -111,45 +115,41 @@ const CallWindowHeader = ({
 export const CallOverlay = () => {
   const {
     username: selfUsername,
-    isGroup,
-    inCall,
-    groupLabel,
-    room,
     remoteParticipants,
     dmCall,
     groupCall,
     actions,
   } = useChatRoom();
+  const groups = useChatStore((s) => s.groups);
 
-  const incomingCall = isGroup ? null : dmCall.incomingCall;
+  const dmIncoming = dmCall.incomingCall;
+  const dmInCall = dmCall.inCall;
+  const groupIncoming = groupCall.roomCall;
+  const groupInCall = groupCall.inGroupCall;
+
+  const showDmIncoming = !!dmIncoming && !dmInCall && !groupInCall;
+  const showGroupIncoming = !!groupIncoming && !dmInCall && !groupInCall;
+  const inActiveCall = dmInCall || groupInCall;
+  const visible = showDmIncoming || showGroupIncoming || inActiveCall;
+
+  const groupRoom = groupInCall ? groupCall.activeRoom : groupIncoming?.room;
+  const groupLabel = groups.find((g) => g.room === groupRoom)?.name ?? "Group call";
+
   const callPeer = dmCall.callPeer;
-  const localStream = isGroup ? groupCall.localStream : dmCall.localStream;
+  const localStream = groupInCall ? groupCall.localStream : dmCall.localStream;
   const remoteStream = dmCall.remoteStream;
-  const groupHost = groupCall.roomCall?.host ?? groupCall.participants[0];
-  const groupParticipants = groupCall.inGroupCall
-    ? groupCall.participants
-    : groupCall.roomCall?.participants ?? [];
-  const incomingGroupCall = groupCall.roomCall
-    ? {
-        callType: groupCall.roomCall.callType,
-        host: groupCall.roomCall.host,
-        participants: groupCall.roomCall.participants,
-      }
-    : null;
-  const groupCallType = groupCall.callType;
-
-  const showDmIncoming = incomingCall && !inCall && !isGroup;
-  const showGroupIncoming = incomingGroupCall && !inCall && isGroup;
-  const visible = showDmIncoming || showGroupIncoming || inCall;
+  const groupHost = groupIncoming?.host ?? groupCall.participants[0];
+  const groupParticipants = groupInCall ? groupCall.participants : groupIncoming?.participants ?? [];
+  const groupCallType = groupInCall ? groupCall.callType : groupIncoming?.callType ?? "audio";
 
   const [minimized, setMinimized] = useState(false);
-  const { label: durationLabel } = useCallTimer(inCall);
+  const { label: durationLabel } = useCallTimer(inActiveCall);
 
-  const isVideo = isGroup
-    ? inCall
+  const isVideo = groupInCall
+    ? groupCallType === "video"
+    : showGroupIncoming
       ? groupCallType === "video"
-      : incomingGroupCall?.callType === "video"
-    : (callPeer?.callType ?? incomingCall?.callType) === "video";
+      : (callPeer?.callType ?? dmIncoming?.callType) === "video";
 
   const panelWidth = minimized ? MINIMIZED_WIDTH : isVideo ? VIDEO_WIDTH : AUDIO_WIDTH;
   const panelHeight = minimized ? MINIMIZED_HEIGHT : isVideo ? VIDEO_HEIGHT : AUDIO_HEIGHT;
@@ -160,27 +160,46 @@ export const CallOverlay = () => {
     panelHeight,
   });
 
+  const alertTitle = showDmIncoming
+    ? `Call from ${dmIncoming?.username ?? "someone"}`
+    : showGroupIncoming
+      ? `Group call in ${groupLabel}`
+      : "";
+  const alertBody = showDmIncoming
+    ? `Incoming ${dmIncoming?.callType === "video" ? "video" : "audio"} call`
+    : showGroupIncoming
+      ? `Started by ${groupIncoming?.host ?? "someone"}`
+      : "";
+
+  useIncomingCallAlerts(showDmIncoming || showGroupIncoming, alertTitle, alertBody);
+
   useEffect(() => {
     if (!visible) setMinimized(false);
   }, [visible]);
 
-  if (!visible || !position) return null;
+  const fallbackPosition = {
+    x: Math.max(0, (window.innerWidth - panelWidth) / 2),
+    y: Math.max(16, (window.innerHeight - panelHeight) / 4),
+  };
+  const panelPosition = position ?? fallbackPosition;
 
-  const dmPeerName = callPeer?.username ?? incomingCall?.username ?? "";
-  const title = inCall
-    ? isGroup
-      ? groupLabel ?? "Group call"
-      : dmPeerName
-    : showGroupIncoming
-      ? groupLabel ?? "Group call"
-      : dmPeerName;
+  if (!visible) return null;
 
-  const subtitle = inCall
+  const dmPeerName = callPeer?.username ?? dmIncoming?.username ?? "";
+  const title = dmInCall
+    ? dmPeerName
+    : groupInCall
+      ? groupLabel
+      : showGroupIncoming
+        ? groupLabel
+        : dmPeerName;
+
+  const subtitle = inActiveCall
     ? `${isVideo ? "Video" : "Audio"} · ${durationLabel}`
     : showGroupIncoming
-      ? `${incomingGroupCall?.callType === "video" ? "Video" : "Audio"} · ${incomingGroupCall?.participants.length ?? 0} in call`
-      : incomingCall
-        ? `${incomingCall.callType === "video" ? "Video" : "Audio"} call`
+      ? `${groupIncoming?.callType === "video" ? "Video" : "Audio"} · ${groupIncoming?.participants.length ?? 0} in call`
+      : dmIncoming
+        ? `${dmIncoming.callType === "video" ? "Video" : "Audio"} call`
         : undefined;
 
   const previewStream = isVideo
@@ -190,7 +209,7 @@ export const CallOverlay = () => {
   const content = (
     <div
       ref={panelRef}
-      style={{ left: position.x, top: position.y, width: panelWidth }}
+      style={{ left: panelPosition.x, top: panelPosition.y, width: panelWidth }}
       className={cn(
         "fixed z-[200] overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl ring-1 ring-black/5",
         !isDragging && "transition-[width,height] duration-200",
@@ -217,17 +236,17 @@ export const CallOverlay = () => {
             <MinimizedVideoPreview stream={previewStream} />
           ) : (
             <UserAvatar
-              name={isGroup ? groupLabel ?? "Group" : dmPeerName}
+              name={groupInCall || showGroupIncoming ? groupLabel : dmPeerName}
               className="h-10 w-10 shrink-0"
-              showOnline={!isGroup}
+              showOnline={!groupInCall && !showGroupIncoming}
               online
             />
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{title}</p>
-            <p className="text-xs text-muted-foreground">{inCall ? durationLabel : "Incoming call"}</p>
+            <p className="text-xs text-muted-foreground">{inActiveCall ? durationLabel : "Incoming call"}</p>
           </div>
-          {inCall ? (
+          {inActiveCall ? (
             <Button
               type="button"
               size="icon"
@@ -251,7 +270,7 @@ export const CallOverlay = () => {
                     className="h-9 w-9 rounded-full"
                     onClick={(e) => {
                       e.stopPropagation();
-                      dmCall.acceptCall();
+                      actions.acceptIncomingDmCall();
                     }}
                   >
                     <Phone className="h-4 w-4" />
@@ -278,7 +297,7 @@ export const CallOverlay = () => {
                     className="h-9 w-9 rounded-full"
                     onClick={(e) => {
                       e.stopPropagation();
-                      groupCall.joinGroupCall(room);
+                      actions.acceptIncomingGroupCall();
                     }}
                   >
                     <Phone className="h-4 w-4" />
@@ -302,17 +321,17 @@ export const CallOverlay = () => {
         </Button>
       ) : (
         <div className="p-4">
-          {showDmIncoming && incomingCall && (
+          {showDmIncoming && dmIncoming && (
             <div className="flex flex-col items-center gap-4 py-4">
-              <UserAvatar name={incomingCall.username} className="h-20 w-20" showOnline online />
+              <UserAvatar name={dmIncoming.username} className="h-20 w-20" showOnline online />
               <div className="text-center">
-                <p className="text-lg font-semibold">{incomingCall.username}</p>
+                <p className="text-lg font-semibold">{dmIncoming.username}</p>
                 <p className="text-sm text-muted-foreground">
-                  Incoming {incomingCall.callType === "video" ? "video" : "audio"} call
+                  Incoming {dmIncoming.callType === "video" ? "video" : "audio"} call
                 </p>
               </div>
               <div className="flex gap-3">
-                <Button type="button" className="rounded-full px-6" onClick={() => dmCall.acceptCall()}>
+                <Button type="button" className="rounded-full px-6" onClick={() => actions.acceptIncomingDmCall()}>
                   <Phone className="mr-2 h-4 w-4" />
                   Accept
                 </Button>
@@ -324,10 +343,10 @@ export const CallOverlay = () => {
             </div>
           )}
 
-          {showGroupIncoming && incomingGroupCall && (
+          {showGroupIncoming && groupIncoming && (
             <div className="flex flex-col items-center gap-4 py-4">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/15">
-                {incomingGroupCall.callType === "video" ? (
+                {groupIncoming.callType === "video" ? (
                   <Video className="h-9 w-9 text-primary" />
                 ) : (
                   <Phone className="h-9 w-9 text-primary" />
@@ -336,14 +355,14 @@ export const CallOverlay = () => {
               <div className="text-center">
                 <p className="text-lg font-semibold">{groupLabel}</p>
                 <p className="text-sm text-muted-foreground">
-                  {incomingGroupCall.callType === "video" ? "Group video call" : "Group audio call"}
+                  {groupIncoming.callType === "video" ? "Group video call" : "Group audio call"}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Started by {incomingGroupCall.host} · {incomingGroupCall.participants.length} in call
+                  Started by {groupIncoming.host} · {groupIncoming.participants.length} in call
                 </p>
               </div>
               <div className="flex gap-3">
-                <Button type="button" className="rounded-full px-6" onClick={() => groupCall.joinGroupCall(room)}>
+                <Button type="button" className="rounded-full px-6" onClick={() => actions.acceptIncomingGroupCall()}>
                   Join call
                 </Button>
                 <Button type="button" variant="outline" className="rounded-full px-6" onClick={() => groupCall.dismissIncoming()}>
@@ -353,8 +372,12 @@ export const CallOverlay = () => {
             </div>
           )}
 
-          {inCall && isGroup && (
+          {groupInCall && (
             <>
+              {groupCallType === "audio" &&
+                remoteParticipants.map(({ username, stream }) => (
+                  <CallAudioStream key={username} stream={stream} />
+                ))}
               {isVideo ? (
                 <div className="grid max-h-[340px] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
                   <VideoTile stream={localStream ?? null} label="You" muted className="aspect-video" />
@@ -387,8 +410,9 @@ export const CallOverlay = () => {
             </>
           )}
 
-          {inCall && !isGroup && callPeer && (
+          {dmInCall && callPeer && (
             <>
+              <CallAudioStream stream={callPeer.callType === "audio" ? remoteStream : null} />
               {callPeer.callType === "video" ? (
                 <div className="relative">
                   <VideoTile
@@ -401,11 +425,14 @@ export const CallOverlay = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-4 py-8">
-                  <UserAvatar name={callPeer.username} className="h-24 w-24" showOnline online />
+                <div className="flex flex-col items-center gap-5 py-8">
+                  <div className="relative">
+                    <span className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+                    <UserAvatar name={callPeer.username} className="relative h-24 w-24" />
+                  </div>
                   <div className="text-center">
                     <p className="text-lg font-semibold">{callPeer.username}</p>
-                    <p className="text-sm text-muted-foreground">Audio call · {durationLabel}</p>
+                    <p className="text-sm text-muted-foreground">{durationLabel}</p>
                   </div>
                 </div>
               )}

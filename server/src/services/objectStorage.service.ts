@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Readable } from "node:stream";
 import {
   CreateBucketCommand,
@@ -23,10 +21,14 @@ const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 
 let s3Client: S3Client | null = null;
 
-const enabled = () => config.minio.enabled;
+const requireMinio = () => {
+  if (!config.minio.endpoint) {
+    throw new Error("MINIO_ENDPOINT is required. All uploads are stored in MinIO.");
+  }
+};
 
-const getClient = () => {
-  if (!enabled()) return null;
+const getClient = (): S3Client => {
+  requireMinio();
   if (!s3Client) {
     s3Client = new S3Client({
       endpoint: config.minio.endpoint,
@@ -41,157 +43,78 @@ const getClient = () => {
   return s3Client;
 };
 
-const localPath = (key: string) => path.join(config.uploadDir, key);
-
 const ensureReady = async () => {
-  if (enabled()) {
-    const client = getClient()!;
-    try {
-      await client.send(new HeadBucketCommand({ Bucket: config.minio.bucket }));
-    } catch {
-      await client.send(new CreateBucketCommand({ Bucket: config.minio.bucket }));
-    }
-    return;
+  const client = getClient();
+  try {
+    await client.send(new HeadBucketCommand({ Bucket: config.minio.bucket }));
+  } catch {
+    await client.send(new CreateBucketCommand({ Bucket: config.minio.bucket }));
   }
-
-  await fs.promises.mkdir(path.join(config.uploadDir, "avatars"), { recursive: true });
-  await fs.promises.mkdir(path.join(config.uploadDir, "group-avatars"), { recursive: true });
-  await fs.promises.mkdir(path.join(config.uploadDir, "files"), { recursive: true });
 };
 
 const exists = async (key: string): Promise<boolean> => {
-  if (enabled()) {
-    try {
-      await getClient()!.send(new HeadObjectCommand({ Bucket: config.minio.bucket, Key: key }));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   try {
-    await fs.promises.access(localPath(key));
+    await getClient().send(new HeadObjectCommand({ Bucket: config.minio.bucket, Key: key }));
     return true;
   } catch {
-    const legacy = path.join(config.uploadDir, path.basename(key));
-    try {
-      await fs.promises.access(legacy);
-      return true;
-    } catch {
-      return false;
-    }
+    return false;
   }
 };
 
 const put = async (key: string, body: Buffer, contentType?: string) => {
-  if (enabled()) {
-    await getClient()!.send(
-      new PutObjectCommand({
-        Bucket: config.minio.bucket,
-        Key: key,
-        Body: body,
-        ContentType: contentType,
-      }),
-    );
-    return;
-  }
-
-  const filePath = localPath(key);
-  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.promises.writeFile(filePath, body);
-};
-
-const getObject = async (key: string): Promise<StoredObject | null> => {
-  if (enabled()) {
-    try {
-      const response = await getClient()!.send(
-        new GetObjectCommand({ Bucket: config.minio.bucket, Key: key }),
-      );
-      if (!response.Body) return null;
-      return {
-        stream: response.Body as Readable,
-        contentType: response.ContentType,
-        contentLength: response.ContentLength,
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  const candidates = [localPath(key), path.join(config.uploadDir, path.basename(key))];
-  for (const filePath of candidates) {
-    try {
-      await fs.promises.access(filePath);
-      const stream = fs.createReadStream(filePath);
-      return { stream };
-    } catch {
-      continue;
-    }
-  }
-  return null;
-};
-
-const deleteObject = async (key: string) => {
-  if (enabled()) {
-    try {
-      await getClient()!.send(new DeleteObjectCommand({ Bucket: config.minio.bucket, Key: key }));
-    } catch {
-      // ignore missing objects
-    }
-    return;
-  }
-
-  const candidates = [localPath(key), path.join(config.uploadDir, path.basename(key))];
-  await Promise.all(
-    candidates.map(async (filePath) => {
-      try {
-        await fs.promises.unlink(filePath);
-      } catch {
-        // ignore
-      }
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: config.minio.bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
     }),
   );
 };
 
-const deleteByPrefix = async (prefix: string, keepKey?: string) => {
-  if (enabled()) {
-    const client = getClient()!;
-    let continuationToken: string | undefined;
-    do {
-      const listing = await client.send(
-        new ListObjectsV2Command({
-          Bucket: config.minio.bucket,
-          Prefix: prefix,
-          ContinuationToken: continuationToken,
-        }),
-      );
-      const keys =
-        listing.Contents?.map((item) => item.Key).filter(
-          (key): key is string => !!key && key !== keepKey,
-        ) ?? [];
-      await Promise.all(keys.map((key) => deleteObject(key)));
-      continuationToken = listing.IsTruncated ? listing.NextContinuationToken : undefined;
-    } while (continuationToken);
-    return;
-  }
-
-  const parentKey = prefix.includes("/") ? prefix.slice(0, prefix.lastIndexOf("/") + 1) : "";
-  const namePrefix = parentKey ? prefix.slice(parentKey.length) : prefix;
-  const dirPath = parentKey ? localPath(parentKey.slice(0, -1)) : config.uploadDir;
-
+const getObject = async (key: string): Promise<StoredObject | null> => {
   try {
-    const entries = await fs.promises.readdir(dirPath);
-    await Promise.all(
-      entries.map(async (entry) => {
-        if (!entry.startsWith(namePrefix)) return;
-        const key = `${parentKey}${entry}`;
-        if (key === keepKey) return;
-        await deleteObject(key);
+    const response = await getClient().send(
+      new GetObjectCommand({ Bucket: config.minio.bucket, Key: key }),
+    );
+    if (!response.Body) return null;
+    return {
+      stream: response.Body as Readable,
+      contentType: response.ContentType,
+      contentLength: response.ContentLength,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const deleteObject = async (key: string) => {
+  try {
+    await getClient().send(new DeleteObjectCommand({ Bucket: config.minio.bucket, Key: key }));
+  } catch {
+    // ignore missing objects
+  }
+};
+
+const deleteByPrefix = async (prefix: string, keepKey?: string) => {
+  const client = getClient();
+  let continuationToken: string | undefined;
+
+  do {
+    const listing = await client.send(
+      new ListObjectsV2Command({
+        Bucket: config.minio.bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
       }),
     );
-  } catch {
-    // ignore missing directory
-  }
+    const keys =
+      listing.Contents?.map((item) => item.Key).filter(
+        (key): key is string => !!key && key !== keepKey,
+      ) ?? [];
+    await Promise.all(keys.map((key) => deleteObject(key)));
+    continuationToken = listing.IsTruncated ? listing.NextContinuationToken : undefined;
+  } while (continuationToken);
 };
 
 const findFirstKey = async (
@@ -207,9 +130,6 @@ const findFirstKey = async (
 };
 
 export const objectStorage = {
-  get enabled() {
-    return enabled();
-  },
   ensureReady,
   exists,
   put,
@@ -232,9 +152,10 @@ export const streamObjectToResponse = async (
 
   if (object.contentType) res.setHeader("Content-Type", object.contentType);
   if (object.contentLength) res.setHeader("Content-Length", String(object.contentLength));
-  if (options?.downloadName) {
-    const disposition = options.inline ? "inline" : "attachment";
-    res.setHeader("Content-Disposition", `${disposition}; filename="${options.downloadName}"`);
+  if (options?.inline) {
+    res.setHeader("Content-Disposition", "inline");
+  } else if (options?.downloadName) {
+    res.setHeader("Content-Disposition", `attachment; filename="${options.downloadName}"`);
   }
 
   object.stream.pipe(res);

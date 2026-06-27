@@ -7,7 +7,12 @@ export const avatarPublicPath = (userId: string, version = Date.now()) =>
 
 export const createAvatarService = (connection: Connection) => {
   const findUserIdByUsername = async (username: string): Promise<string | null> => {
-    const user = await connection.db().collection("user").findOne({ name: username });
+    const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const db = connection.db;
+    if (!db) return null;
+    const user = await db
+      .collection("user")
+      .findOne({ name: { $regex: new RegExp(`^${escaped}$`, "i") } });
     return user?._id?.toString() ?? null;
   };
 

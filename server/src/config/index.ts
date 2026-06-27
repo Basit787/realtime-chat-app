@@ -8,10 +8,8 @@ export const config: AppConfig = {
   betterAuthSecret: process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET || "chat-dev-secret-change-me",
   betterAuthUrl: process.env.BETTER_AUTH_URL || "http://localhost:5176",
   corsOrigin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:5176", "http://localhost:80"],
-  uploadDir: process.env.UPLOAD_DIR || "./uploads",
   maxFileSizeMb: Number(process.env.MAX_FILE_SIZE_MB) || 25,
   minio: {
-    enabled: !!minioEndpoint,
     endpoint: minioEndpoint,
     accessKey: process.env.MINIO_ACCESS_KEY || process.env.MINIO_ROOT_USER || "minioadmin",
     secretKey: process.env.MINIO_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD || "minioadmin",

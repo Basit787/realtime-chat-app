@@ -13,6 +13,25 @@ type UseWebRTCOptions = {
   enabled: boolean;
 };
 
+const attachRemoteTrack = (
+  event: RTCTrackEvent,
+  remoteStreamRef: { current: MediaStream | null },
+  setRemoteStream: (stream: MediaStream | null) => void,
+) => {
+  let stream = remoteStreamRef.current;
+  if (!stream) {
+    stream = new MediaStream();
+    remoteStreamRef.current = stream;
+  }
+
+  const track = event.track;
+  if (track && !stream.getTracks().some((t) => t.id === track.id)) {
+    stream.addTrack(track);
+  }
+
+  setRemoteStream(new MediaStream(stream.getTracks()));
+};
+
 export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) => {
   const [callPeer, setCallPeer] = useState<CallPeer | null>(null);
   const [incomingCall, setIncomingCall] = useState<CallPeer | null>(null);
@@ -23,16 +42,28 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const iceServersRef = useRef<RTCIceServer[]>([]);
+  const iceReadyRef = useRef<Promise<void> | null>(null);
   const pendingOfferRef = useRef<{ from: string; sdp: RTCSessionDescriptionInit } | null>(null);
+
+  const ensureIceServers = useCallback(async () => {
+    if (iceServersRef.current.length > 0) return;
+    if (!iceReadyRef.current) {
+      iceReadyRef.current = fetchIceServers()
+        .then((config) => {
+          iceServersRef.current = config.iceServers;
+        })
+        .catch((error) => {
+          console.error(error);
+          iceReadyRef.current = null;
+        });
+    }
+    await iceReadyRef.current;
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
-    fetchIceServers()
-      .then((config) => {
-        iceServersRef.current = config.iceServers;
-      })
-      .catch(console.error);
-  }, [enabled]);
+    void ensureIceServers();
+  }, [enabled, ensureIceServers]);
 
   const cleanupCall = useCallback(() => {
     pcRef.current?.close();
@@ -57,11 +88,7 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
         }
       };
       pc.ontrack = (event) => {
-        const [stream] = event.streams;
-        if (stream) {
-          remoteStreamRef.current = stream;
-          setRemoteStream(stream);
-        }
+        attachRemoteTrack(event, remoteStreamRef, setRemoteStream);
       };
       pcRef.current = pc;
       return pc;
@@ -84,6 +111,7 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
     async (peer: string, callType: CallType) => {
       if (!socket || peer === selfUsername || inCall) return;
       try {
+        await ensureIceServers();
         setCallPeer({ username: peer, callType });
         const pc = createPeerConnection(peer);
         await attachLocalMedia(callType);
@@ -97,7 +125,7 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
         cleanupCall();
       }
     },
-    [attachLocalMedia, cleanupCall, createPeerConnection, inCall, selfUsername, socket],
+    [attachLocalMedia, cleanupCall, createPeerConnection, ensureIceServers, inCall, selfUsername, socket],
   );
 
   const acceptCall = useCallback(async () => {
@@ -106,6 +134,7 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
     if (!offer || offer.from !== incomingCall.username) return;
 
     try {
+      await ensureIceServers();
       const peer = incomingCall.username;
       setCallPeer(incomingCall);
       setIncomingCall(null);
@@ -122,7 +151,7 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
       console.error(error);
       cleanupCall();
     }
-  }, [attachLocalMedia, cleanupCall, createPeerConnection, incomingCall, socket]);
+  }, [attachLocalMedia, cleanupCall, createPeerConnection, ensureIceServers, incomingCall, socket]);
 
   const rejectCall = useCallback(() => {
     if (socket && incomingCall) {

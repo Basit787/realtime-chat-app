@@ -97,7 +97,7 @@ minio:9000        Object storage (files, avatars, group images)
 minio:9001        MinIO web console
 ```
 
-Without Docker, the server falls back to local `./uploads` when `MINIO_ENDPOINT` is not set.
+`MINIO_ENDPOINT` is **required**. Chat attachments, profile photos, and group images are stored only in MinIO (MongoDB keeps metadata and references).
 
 ## WebRTC / TURN
 

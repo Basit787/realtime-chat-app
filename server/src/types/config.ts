@@ -1,5 +1,4 @@
 export interface MinioConfig {
-  enabled: boolean;
   endpoint: string;
   accessKey: string;
   secretKey: string;
@@ -13,7 +12,6 @@ export interface AppConfig {
   betterAuthSecret: string;
   betterAuthUrl: string;
   corsOrigin: string[];
-  uploadDir: string;
   maxFileSizeMb: number;
   minio: MinioConfig;
   turnHost: string;

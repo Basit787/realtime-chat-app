@@ -9,17 +9,23 @@ import { createChatGroupsMutationsSlice } from "@/pages/chat/store/chat-groups-m
 import { createChatMessagesDataSlice } from "@/pages/chat/store/chat-messages-data-slice";
 import { createChatMessagesDeleteSlice } from "@/pages/chat/store/chat-messages-delete-slice";
 import { createChatMessagesHiddenSlice } from "@/pages/chat/store/chat-messages-hidden-slice";
+import { createChatMessageStatusSlice } from "@/pages/chat/store/chat-message-status-slice";
 import { createChatMessagesMutationsSlice } from "@/pages/chat/store/chat-messages-mutations-slice";
 import { createChatNavigationSlice } from "@/pages/chat/store/chat-navigation-slice";
 import { createChatPresenceSlice } from "@/pages/chat/store/chat-presence-slice";
 import { createChatResetSlice } from "@/pages/chat/store/chat-reset-slice";
 import { createChatSearchSlice } from "@/pages/chat/store/chat-search-slice";
 import { createChatUserStatusSlice } from "@/pages/chat/store/chat-user-status-slice";
+import { createChatUnreadSlice } from "@/pages/chat/store/chat-unread-slice";
+import { createChatGroupCallSlice } from "@/pages/chat/store/chat-group-call-slice";
+import { createChatUserProfilesSlice } from "@/pages/chat/store/chat-user-profiles-slice";
+import { createChatMessageSelectionSlice } from "@/pages/chat/store/chat-message-selection-slice";
 import type { ChatState } from "@/pages/chat/store/chat-types";
 
 export type {
   ChatState,
   Conversation,
+  MessageDeliveryStatus,
   SidebarView,
   UserStatus,
 } from "@/pages/chat/store/chat-types";
@@ -54,6 +60,11 @@ export const useChatStore = create<ChatState>()((...args) => ({
   ...createChatUserStatusSlice(...args),
   ...createChatMessagesDataSlice(...args),
   ...createChatMessagesMutationsSlice(...args),
+  ...createChatMessageStatusSlice(...args),
+  ...createChatUnreadSlice(...args),
+  ...createChatGroupCallSlice(...args),
+  ...createChatUserProfilesSlice(...args),
+  ...createChatMessageSelectionSlice(...args),
   ...createChatMessagesDeleteSlice(...args),
   ...createChatMessagesHiddenSlice(...args),
   ...createChatGroupsDataSlice(...args),

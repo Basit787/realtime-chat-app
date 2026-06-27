@@ -1,37 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
-import { fetchIceServers, type CallType } from "@/pages/chat/api/api";
-
-export type GroupCallState = {
-  room: string;
-  callType: CallType;
-  host: string;
-  participants: string[];
-};
+import { fetchIceServers, type CallType, type GroupCallState } from "@/pages/chat/api/api";
+import { useChatStore } from "@/pages/chat/store/chat-store";
 
 type UseGroupWebRTCOptions = {
   socket: Socket | null;
   selfUsername: string;
-  room: string;
   enabled: boolean;
 };
 
-export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroupWebRTCOptions) => {
+export type { GroupCallState };
+
+export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTCOptions) => {
+  const roomCall = useChatStore((s) => s.incomingGroupCall);
+  const clearIncomingGroupCall = useChatStore((s) => s.clearIncomingGroupCall);
+  const dismissIncomingGroupCall = useChatStore((s) => s.dismissIncomingGroupCall);
+
   const [inGroupCall, setInGroupCall] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [callType, setCallType] = useState<CallType>("audio");
   const [participants, setParticipants] = useState<string[]>([]);
-  const [roomCall, setRoomCall] = useState<GroupCallState | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
 
   const iceServersRef = useRef<RTCIceServer[]>([]);
+  const iceReadyRef = useRef<Promise<void> | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const activeRoomRef = useRef<string | null>(null);
   const inGroupCallRef = useRef(false);
   const participantsRef = useRef<string[]>([]);
-  const dismissedRoomRef = useRef<string | null>(null);
 
   useEffect(() => {
     activeRoomRef.current = activeRoom;
@@ -47,12 +45,33 @@ export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroup
 
   useEffect(() => {
     if (!enabled) return;
-    fetchIceServers()
-      .then((config) => {
-        iceServersRef.current = config.iceServers;
-      })
-      .catch(console.error);
+    if (!iceReadyRef.current) {
+      iceReadyRef.current = fetchIceServers()
+        .then((config) => {
+          iceServersRef.current = config.iceServers;
+        })
+        .catch((error) => {
+          console.error(error);
+          iceReadyRef.current = null;
+        });
+    }
+    void iceReadyRef.current;
   }, [enabled]);
+
+  const ensureIceServers = useCallback(async () => {
+    if (iceServersRef.current.length > 0) return;
+    if (!iceReadyRef.current) {
+      iceReadyRef.current = fetchIceServers()
+        .then((config) => {
+          iceServersRef.current = config.iceServers;
+        })
+        .catch((error) => {
+          console.error(error);
+          iceReadyRef.current = null;
+        });
+    }
+    await iceReadyRef.current;
+  }, []);
 
   const cleanupPeer = useCallback((peer: string) => {
     pcsRef.current.get(peer)?.close();
@@ -104,10 +123,18 @@ export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroup
         }
       };
       pc.ontrack = (event) => {
-        const [stream] = event.streams;
-        if (stream) {
-          setRemoteStreams((prev) => new Map(prev).set(peer, stream));
-        }
+        const track = event.track;
+        if (!track) return;
+        setRemoteStreams((prev) => {
+          const next = new Map(prev);
+          const existing = next.get(peer);
+          const stream = existing ? new MediaStream(existing.getTracks()) : new MediaStream();
+          if (!stream.getTracks().some((t) => t.id === track.id)) {
+            stream.addTrack(track);
+          }
+          next.set(peer, stream);
+          return next;
+        });
       };
 
       localStreamRef.current?.getTracks().forEach((track) => {
@@ -136,8 +163,8 @@ export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroup
 
   const enterCall = useCallback(
     async (state: GroupCallState) => {
-      setRoomCall(null);
-      dismissedRoomRef.current = null;
+      await ensureIceServers();
+      clearIncomingGroupCall(state.room);
       setActiveRoom(state.room);
       setCallType(state.callType);
       setParticipants(state.participants);
@@ -151,19 +178,19 @@ export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroup
       const peersToConnect = state.participants.filter((p) => p !== selfUsername && !existing.has(p));
       await connectToPeers(state.room, peersToConnect);
     },
-    [attachLocalMedia, connectToPeers, selfUsername],
+    [attachLocalMedia, clearIncomingGroupCall, connectToPeers, ensureIceServers, selfUsername],
   );
 
   const startGroupCall = useCallback(
     async (callRoom: string, type: CallType) => {
       if (!socket || inGroupCallRef.current) return;
       try {
-        dismissedRoomRef.current = null;
+        await ensureIceServers();
+        clearIncomingGroupCall(callRoom);
         setCallType(type);
         setActiveRoom(callRoom);
         setInGroupCall(true);
         setParticipants([selfUsername]);
-        setRoomCall(null);
         await attachLocalMedia(type);
         socket.emit("group-call:start", { room: callRoom, callType: type });
       } catch (error) {
@@ -171,16 +198,16 @@ export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroup
         cleanupAll();
       }
     },
-    [attachLocalMedia, cleanupAll, selfUsername, socket],
+    [attachLocalMedia, cleanupAll, clearIncomingGroupCall, ensureIceServers, selfUsername, socket],
   );
 
   const joinGroupCall = useCallback(
     (callRoom: string) => {
       if (!socket || inGroupCallRef.current) return;
-      dismissedRoomRef.current = null;
+      clearIncomingGroupCall(callRoom);
       socket.emit("group-call:join", { room: callRoom });
     },
-    [socket],
+    [clearIncomingGroupCall, socket],
   );
 
   const leaveGroupCall = useCallback(() => {
@@ -191,23 +218,21 @@ export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroup
   }, [cleanupAll, socket]);
 
   const dismissIncoming = useCallback(() => {
-    if (roomCall) dismissedRoomRef.current = roomCall.room;
-    setRoomCall(null);
-  }, [roomCall]);
+    if (roomCall) dismissIncomingGroupCall(roomCall.room);
+  }, [dismissIncomingGroupCall, roomCall]);
 
   useEffect(() => {
     if (!socket) return;
 
     const onState = (state: GroupCallState) => {
-      if (state.room === room) {
-        if (!inGroupCallRef.current && !state.participants.includes(selfUsername)) {
-          if (dismissedRoomRef.current !== state.room) setRoomCall(state);
-        } else if (!inGroupCallRef.current && state.participants.includes(selfUsername)) {
+      if (!inGroupCallRef.current) {
+        if (state.participants.includes(selfUsername)) {
           void enterCall(state);
         }
+        return;
       }
 
-      if (state.room !== activeRoomRef.current || !inGroupCallRef.current) return;
+      if (state.room !== activeRoomRef.current) return;
 
       const previous = participantsRef.current;
       setParticipants(state.participants);
@@ -222,10 +247,6 @@ export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroup
     };
 
     const onEnded = ({ room: endedRoom }: { room: string }) => {
-      if (endedRoom === room) {
-        setRoomCall(null);
-        dismissedRoomRef.current = null;
-      }
       if (endedRoom === activeRoomRef.current) cleanupAll();
     };
 
@@ -271,15 +292,11 @@ export const useGroupWebRTC = ({ socket, selfUsername, room, enabled }: UseGroup
       socket.off("group-call:answer", onAnswer);
       socket.off("group-call:ice-candidate", onIce);
     };
-  }, [cleanupAll, cleanupPeer, connectToPeers, createPeerConnection, enterCall, room, selfUsername, socket]);
-
-  useEffect(() => {
-    dismissedRoomRef.current = null;
-    setRoomCall(null);
-  }, [room]);
+  }, [cleanupAll, cleanupPeer, connectToPeers, createPeerConnection, enterCall, selfUsername, socket]);
 
   return {
     inGroupCall,
+    activeRoom,
     callType,
     participants,
     roomCall,

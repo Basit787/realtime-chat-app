@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Download, FileText, Loader2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -86,7 +86,7 @@ const PreviewContent = ({
       <p className="text-sm text-muted-foreground">Preview not available for this file type</p>
     </div>
   );
-}
+};
 
 export const FilePreviewModal = ({ open, onClose, room, file }: FilePreviewModalProps) => {
   const category = getFileCategory(file.mimeType);
@@ -128,16 +128,17 @@ export const FilePreviewModal = ({ open, onClose, room, file }: FilePreviewModal
       </div>
     </Dialog>
   );
-}
+};
 
 type FileAttachmentProps = {
   room: string;
   file: MessageFile;
   caption?: string;
   isOwn?: boolean;
+  footer?: ReactNode;
 };
 
-export const FileAttachment = ({ room, file, caption, isOwn }: FileAttachmentProps) => {
+export const FileAttachment = ({ room, file, caption, isOwn, footer }: FileAttachmentProps) => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const category = getFileCategory(file.mimeType);
   const isMedia = category === "image" || category === "video" || category === "pdf";
@@ -160,78 +161,79 @@ export const FileAttachment = ({ room, file, caption, isOwn }: FileAttachmentPro
       <div className="relative px-1">
         <VoiceNotePlayer room={room} file={file} isOwn={isOwn} />
         {caption && caption !== file.name && <p className="mt-1 px-0.5 text-sm">{caption}</p>}
+        {footer}
       </div>
     );
   }
 
+  const showFileMeta = category !== "image" && category !== "video";
+
   return (
     <>
-      <div className="relative">
-        <Button
+      <div className="relative w-full max-w-[240px]">
+        <button
           type="button"
-          variant="ghost"
           onClick={handleClick}
           disabled={isDocument && !blobUrl && loading}
           className={cn(
-            "group h-auto w-full max-w-[220px] justify-start overflow-hidden rounded-xl p-0 text-left font-normal hover:opacity-90 disabled:opacity-60",
-            isOwn ? "text-primary-foreground hover:bg-transparent" : "text-foreground hover:bg-transparent",
+            "flex w-full flex-col overflow-hidden rounded-xl text-left transition-opacity hover:opacity-90 disabled:opacity-60",
+            isOwn ? "text-primary-foreground" : "text-foreground",
           )}
         >
-        {category === "image" && (
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-black/20">
-            {loading || !blobUrl ? (
-              <div className="flex h-full min-h-[100px] items-center justify-center">
-                <Loader2 className="h-5 w-5 animate-spin opacity-60" />
-              </div>
-            ) : (
-              <img src={blobUrl} alt={file.name} className="h-full w-full object-cover" />
-            )}
-          </div>
-        )}
-
-        {category === "video" && (
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-black/30">
-            {blobUrl && (
-              <video src={blobUrl} muted preload="metadata" className="h-full w-full object-cover" />
-            )}
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50">
-                <Play className="h-5 w-5 fill-white text-white" />
-              </span>
+          {category === "image" && (
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-black/20">
+              {loading || !blobUrl ? (
+                <div className="flex h-full min-h-[100px] items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin opacity-60" />
+                </div>
+              ) : (
+                <img src={blobUrl} alt={file.name} className="h-full w-full object-cover" />
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {(category === "pdf" || category === "document" || category === "other") && (
-          <div
-            className={cn(
-              "flex items-center gap-3 rounded-xl p-3",
-              isOwn ? "bg-primary-foreground/10" : "bg-background/60",
-            )}
-          >
-            <span
+          {category === "video" && (
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-black/30">
+              {blobUrl && (
+                <video src={blobUrl} muted preload="metadata" className="h-full w-full object-cover" />
+              )}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50">
+                  <Play className="h-5 w-5 fill-white text-white" />
+                </span>
+              </div>
+            </div>
+          )}
+
+          {(category === "pdf" || category === "document" || category === "other") && (
+            <div
               className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-                isOwn ? "bg-primary-foreground/15" : "bg-muted",
+                "flex flex-col items-center gap-2 rounded-xl px-4 py-3",
+                isOwn ? "bg-primary-foreground/10" : "bg-background/60",
               )}
             >
-              <FileText className="h-5 w-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{file.name}</p>
-              <p className="text-xs opacity-70">{formatFileSize(file.size)}</p>
+              <span
+                className={cn(
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg",
+                  isOwn ? "bg-primary-foreground/15" : "bg-muted",
+                )}
+              >
+                <FileText className="h-5 w-5" />
+              </span>
             </div>
+          )}
+
+          <div className={cn("w-full min-w-0 px-2", showFileMeta ? "pt-2" : "pt-1.5")}>
+            <p className="truncate text-sm font-medium leading-snug">{file.name}</p>
+            {showFileMeta && <p className="mt-0.5 text-xs opacity-70">{formatFileSize(file.size)}</p>}
           </div>
-        )}
 
-        {caption && caption !== file.name && (
-          <p className="mt-1.5 px-0.5 text-sm">{caption}</p>
-        )}
+          {caption && caption !== file.name && (
+            <p className="px-2 pb-1 text-sm leading-snug">{caption}</p>
+          )}
+        </button>
 
-        {isMedia && (
-          <p className="mt-1 truncate px-0.5 text-xs opacity-70">{file.name}</p>
-        )}
-        </Button>
+        {footer}
       </div>
 
       {isMedia && (
@@ -239,4 +241,4 @@ export const FileAttachment = ({ room, file, caption, isOwn }: FileAttachmentPro
       )}
     </>
   );
-}
+};

@@ -22,6 +22,13 @@ export type ChatMessage = {
 
 export type CallType = "audio" | "video";
 
+export type GroupCallState = {
+  room: string;
+  callType: CallType;
+  host: string;
+  participants: string[];
+};
+
 export type CallStatus = "completed" | "missed" | "rejected" | "cancelled";
 
 export type CallHistoryEntry = {
@@ -126,8 +133,13 @@ export const fetchGroups = async (): Promise<ChatGroup[]> => {
   return response.data.groups ?? [];
 };
 
-export const fetchContacts = async (): Promise<string[]> => {
-  const response = await apiClient.get<{ contacts: string[] }>(chatEndpoints.contacts());
+export type ContactProfile = {
+  name: string;
+  image: string;
+};
+
+export const fetchContacts = async (): Promise<ContactProfile[]> => {
+  const response = await apiClient.get<{ contacts: ContactProfile[] }>(chatEndpoints.contacts());
   if (!response.ok) {
     throw createApiError(response.message ?? "Failed to load contacts", response.status);
   }

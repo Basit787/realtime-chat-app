@@ -14,6 +14,7 @@ import {
 import { useAuthStore } from "@/pages/auth/store/auth-store";
 import { useChatStore, type UserStatus } from "@/pages/chat/store/chat-store";
 import { useMutationToast } from "@/lib/use-mutation-toast";
+import { normalizeAvatarUrl } from "@/lib/avatar-url";
 
 export const useUpdateProfileName = () => {
   const token = useAuthStore((s) => s.token);
@@ -81,14 +82,19 @@ export const useDeleteAccount = () => {
 
 export const useUploadProfileAvatar = () => {
   const setProfileImage = useAuthStore((s) => s.setProfileImage);
+  const mergeUserProfileImages = useChatStore((s) => s.mergeUserProfileImages);
   const queryClient = useQueryClient();
   const { onSuccessNotification, onErrorNotification } = useMutationToast();
 
   return useMutation({
     mutationFn: (file: File) => uploadProfilePhoto(file),
     onSuccess: (image) => {
-      setProfileImage(image);
+      const username = useAuthStore.getState().username;
+      const normalized = normalizeAvatarUrl(image) ?? image;
+      setProfileImage(normalized);
+      if (username) mergeUserProfileImages({ [username]: normalized });
       void queryClient.invalidateQueries({ queryKey: ["session"] });
+      void queryClient.invalidateQueries({ queryKey: ["contacts"] });
       onSuccessNotification("Profile photo updated");
     },
     onError: (err) => onErrorNotification(err, "Could not upload photo"),
@@ -97,13 +103,16 @@ export const useUploadProfileAvatar = () => {
 
 export const useRemoveProfileAvatar = () => {
   const setProfileImage = useAuthStore((s) => s.setProfileImage);
+  const mergeUserProfileImages = useChatStore((s) => s.mergeUserProfileImages);
   const queryClient = useQueryClient();
   const { onSuccessNotification, onErrorNotification } = useMutationToast();
 
   return useMutation({
     mutationFn: () => removeProfilePhoto(),
     onSuccess: () => {
+      const username = useAuthStore.getState().username;
       setProfileImage("");
+      if (username) mergeUserProfileImages({ [username]: "" });
       void queryClient.invalidateQueries({ queryKey: ["session"] });
       onSuccessNotification("Profile photo removed");
     },

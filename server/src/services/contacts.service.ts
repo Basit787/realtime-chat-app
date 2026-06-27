@@ -1,4 +1,5 @@
 import type { Connection } from "mongoose";
+import type { ContactDto } from "../types/api.js";
 import { ChatGroup } from "../models/ChatGroup.js";
 import { CallHistory } from "../models/CallHistory.js";
 import { Message } from "../models/Message.js";
@@ -33,17 +34,45 @@ export const createContactsService = (connection: Connection) => {
       }
     }
 
-    const allUsers = await connection.db().collection("user").find({}, { projection: { name: 1 } }).toArray();
-    for (const user of allUsers) {
-      const name = user.name as string | undefined;
-      if (name && name !== username) peers.add(name);
+    const db = connection.db;
+    if (db) {
+      const allUsers = await db.collection("user").find({}, { projection: { name: 1 } }).toArray();
+      for (const user of allUsers) {
+        const name = user.name as string | undefined;
+        if (name && name !== username) peers.add(name);
+      }
     }
 
     peers.delete(username);
     return [...peers].sort((a, b) => a.localeCompare(b));
   };
 
-  return { getKnownContacts };
+  const getKnownContactProfiles = async (username: string): Promise<ContactDto[]> => {
+    const names = await getKnownContacts(username);
+    if (names.length === 0) return [];
+
+    const db = connection.db;
+    if (!db) return [];
+
+    const users = await db
+      .collection("user")
+      .find({ name: { $in: names } }, { projection: { name: 1, image: 1 } })
+      .toArray();
+
+    const imageByName = new Map<string, string>();
+    for (const user of users) {
+      const name = user.name as string | undefined;
+      if (!name) continue;
+      imageByName.set(name, (user.image as string | undefined) ?? "");
+    }
+
+    return names.map((name) => ({
+      name,
+      image: imageByName.get(name) ?? "",
+    }));
+  };
+
+  return { getKnownContacts, getKnownContactProfiles };
 };
 
 export type ContactsService = ReturnType<typeof createContactsService>;

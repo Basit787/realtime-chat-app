@@ -115,6 +115,7 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     volumes:
       - ./client/src:/app/src
+      - ./client/public:/app/public
       - ./client/index.html:/app/index.html
       - ./client/vite.config.ts:/app/vite.config.ts
       - ./client/tsconfig.json:/app/tsconfig.json

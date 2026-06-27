@@ -6,6 +6,7 @@ import { messageService } from "../services/message.service.js";
 import type { ApiErrorResponse, ChatMessageDto } from "../types/api.js";
 import { canAccessRoom } from "../services/roomAccess.service.js";
 import { HttpError } from "../utils/httpError.js";
+import { emitToRoomParticipants } from "../socket/roomEmit.js";
 
 export const uploadFile = async (
   req: Request,
@@ -23,7 +24,7 @@ export const uploadFile = async (
     const sharedFile = await fileService.saveUploadedFile(room, req.user, req.file);
     const caption = typeof req.body?.caption === "string" ? req.body.caption : undefined;
     const message = await messageService.createFileMessage(room, req.user, sharedFile, caption);
-    io.to(room).emit("message", message);
+    await emitToRoomParticipants(io, room, "message", message);
     res.status(201).json(message);
   } catch (error) {
     if (error instanceof HttpError) throw error;

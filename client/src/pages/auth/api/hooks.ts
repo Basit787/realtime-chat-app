@@ -10,6 +10,8 @@ import {
   type RegisterPayload,
 } from "@/pages/auth/api/api";
 import { useAuthStore } from "@/pages/auth/store/auth-store";
+import { normalizeAvatarUrl } from "@/lib/avatar-url";
+import { useChatStore } from "@/pages/chat/store/chat-store";
 import { useMutationToast } from "@/lib/use-mutation-toast";
 
 export const useLogin = (): UseMutationResult<AuthSession, Error, LoginPayload> => {
@@ -21,7 +23,7 @@ export const useLogin = (): UseMutationResult<AuthSession, Error, LoginPayload> 
     onSuccess: (session) => {
       const name = session.user.name.trim();
       onSuccessNotification(name ? `Welcome back, ${name}` : "Welcome back");
-      setSession(session.user.name, session.token, session.user.email, session.user.image ?? "");
+      setSession(session.user.name, session.token, session.user.email, normalizeAvatarUrl(session.user.image) ?? "");
     },
     onError: (err) => onErrorNotification(err, "Login failed"),
   });
@@ -35,7 +37,7 @@ export const useRegister = (): UseMutationResult<AuthSession, Error, RegisterPay
     mutationFn: registerWithEmail,
     onSuccess: (session) => {
       onSuccessNotification("Account created successfully");
-      setSession(session.user.name, session.token, session.user.email, session.user.image ?? "");
+      setSession(session.user.name, session.token, session.user.email, normalizeAvatarUrl(session.user.image) ?? "");
     },
     onError: (err) => onErrorNotification(err, "Registration failed"),
   });
@@ -80,9 +82,12 @@ export const useAuth = () => {
   useEffect(() => {
     const user = sessionQuery.data;
     if (!isAuthenticated || !token || !user) return;
-    const nextImage = user.image ?? "";
+    const nextImage = normalizeAvatarUrl(user.image) ?? (user.image === undefined ? profileImage : "");
     if (user.email !== email || user.name !== username || nextImage !== profileImage) {
       setSession(user.name, token, user.email, nextImage);
+    }
+    if (user.name && nextImage) {
+      useChatStore.getState().mergeUserProfileImages({ [user.name]: nextImage });
     }
   }, [sessionQuery.data, email, username, profileImage, token, setSession, isAuthenticated]);
 

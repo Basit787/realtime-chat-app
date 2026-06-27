@@ -1,5 +1,10 @@
 import { GENERAL_ROOM } from "@/pages/chat/api/api";
-import { dmPeerFromRoom, parseDmRoom, isGroupRoom, dmRoomName } from "@/lib/rooms";
+import {
+  dmPeerFromRoom,
+  dmRoomName,
+  normalizeDmRoom,
+  messageMatchesConversation,
+} from "@/lib/rooms";
 import { messageKey, messagePreview } from "@/lib/messages";
 import { effectivePresenceStatus } from "@/lib/presence";
 import type { CallHistoryEntry, ChatMessage } from "@/pages/chat/api/api";
@@ -14,6 +19,7 @@ export const buildConversations = (
   callHistory: CallHistoryEntry[] = [],
   knownContacts: string[] = [],
   userStatuses: Record<string, UserStatus> = {},
+  unreadByConversation: Record<string, number> = {},
 ): Conversation[] => {
   const generalMessages = messages.filter((m) => m.room === GENERAL_ROOM);
   const generalLast = generalMessages.at(-1);
@@ -24,6 +30,7 @@ export const buildConversations = (
     room: GENERAL_ROOM,
     lastMessage: generalLast ? (generalLast.deleted ? messagePreview(generalLast) : generalLast.text) : undefined,
     lastAt: generalLast?.at,
+    unreadCount: unreadByConversation[GENERAL_ROOM] ?? 0,
   };
 
   const groupConversations: Conversation[] = groups.map((group) => {
@@ -36,12 +43,14 @@ export const buildConversations = (
       room: group.room,
       lastMessage: last ? (last.deleted ? messagePreview(last) : last.text) : undefined,
       lastAt: last?.at,
+      unreadCount: unreadByConversation[group.room] ?? 0,
     };
   });
 
   const dmRooms = new Set<string>();
   messages.forEach((m) => {
-    if (parseDmRoom(m.room)) dmRooms.add(m.room);
+    const canonical = normalizeDmRoom(m.room);
+    if (canonical) dmRooms.add(canonical);
   });
   callHistory.forEach((call) => {
     const peer = call.caller === selfUsername ? call.callee : call.caller;
@@ -56,7 +65,7 @@ export const buildConversations = (
 
   const dms: Conversation[] = Array.from(dmRooms).map((room) => {
     const peer = dmPeerFromRoom(room, selfUsername) ?? "Unknown";
-    const thread = messages.filter((m) => m.room === room);
+    const thread = messages.filter((m) => normalizeDmRoom(m.room) === room || m.room === room);
     const last = thread.at(-1);
     const presenceStatus = effectivePresenceStatus(peer, onlineUsers, userStatuses);
     return {
@@ -68,6 +77,7 @@ export const buildConversations = (
       presenceStatus,
       lastMessage: last ? (last.deleted ? messagePreview(last) : last.text) : undefined,
       lastAt: last?.at,
+      unreadCount: unreadByConversation[peer] ?? 0,
     };
   });
 
@@ -94,11 +104,7 @@ export const messagesForConversation = (
   conversationId: string,
   selfUsername: string,
   hiddenMessageIds: Set<string> = new Set(),
-) => {
-  const room = isGroupRoom(conversationId)
-    ? conversationId
-    : conversationId === GENERAL_ROOM
-      ? GENERAL_ROOM
-      : `dm..${[selfUsername, conversationId].sort().join("..")}`;
-  return messages.filter((m) => m.room === room && !hiddenMessageIds.has(messageKey(m)));
-};
+) =>
+  messages.filter(
+    (m) => messageMatchesConversation(m.room, conversationId, selfUsername) && !hiddenMessageIds.has(messageKey(m)),
+  );

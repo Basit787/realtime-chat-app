@@ -11,6 +11,10 @@ import { registerRoutes } from "./routes/index.js";
 import { setupSocket } from "./socket/index.js";
 
 const start = async () => {
+  if (!config.minio.endpoint) {
+    throw new Error("MINIO_ENDPOINT is required. All uploads are stored in MinIO.");
+  }
+
   await Promise.all([connectDb(config.mongodbUri), objectStorage.ensureReady()]);
   await seedAdmin(mongoose.connection).catch((err) => console.warn("Seed skipped:", err));
 

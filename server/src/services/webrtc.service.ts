@@ -6,6 +6,7 @@ const getIceServers = (): WebRTCConfigResponse => {
   const port = config.turnPort;
   return {
     iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
       { urls: `stun:${host}:${port}` },
       {
         urls: `turn:${host}:${port}`,

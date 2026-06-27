@@ -2,7 +2,25 @@ const ROOM_PATTERN = /^[a-zA-Z0-9._-]{1,64}$/;
 const DM_PREFIX = "dm..";
 const GROUP_PREFIX = "group..";
 
-export const isValidRoom = (room: string) => ROOM_PATTERN.test(room);
+export const MAX_ROOM_LENGTH = 256;
+
+const encodeDmParticipant = (username: string) => encodeURIComponent(username);
+
+const decodeDmParticipant = (encoded: string): string | null => {
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return null;
+  }
+};
+
+export const isValidRoom = (room: string) => {
+  if (room === "general") return true;
+  if (room.length > MAX_ROOM_LENGTH) return false;
+  if (room.startsWith(GROUP_PREFIX)) return ROOM_PATTERN.test(room);
+  if (room.startsWith(DM_PREFIX)) return parseDmRoom(room) !== null;
+  return ROOM_PATTERN.test(room);
+};
 
 export const groupRoomName = (groupId: string) => `${GROUP_PREFIX}${groupId}`;
 
@@ -16,14 +34,39 @@ export const isGroupRoom = (room: string) => room.startsWith(GROUP_PREFIX);
 
 export const dmRoomName = (userA: string, userB: string) => {
   const [a, b] = [userA, userB].sort();
+  return `${DM_PREFIX}${encodeDmParticipant(a)}..${encodeDmParticipant(b)}`;
+};
+
+/** Pre-encoding DM room id (legacy messages may still use this). */
+export const legacyDmRoomName = (userA: string, userB: string) => {
+  const [a, b] = [userA, userB].sort();
   return `${DM_PREFIX}${a}..${b}`;
+};
+
+export const dmRoomAliases = (userA: string, userB: string): string[] => {
+  const canonical = dmRoomName(userA, userB);
+  const legacy = legacyDmRoomName(userA, userB);
+  return canonical === legacy ? [canonical] : [canonical, legacy];
+};
+
+export const dmRoomsMatch = (left: string, right: string): boolean => {
+  if (left === right) return true;
+  const leftParticipants = parseDmRoom(left);
+  const rightParticipants = parseDmRoom(right);
+  if (!leftParticipants || !rightParticipants) return false;
+  return leftParticipants[0] === rightParticipants[0] && leftParticipants[1] === rightParticipants[1];
 };
 
 export const parseDmRoom = (room: string): [string, string] | null => {
   if (!room.startsWith(DM_PREFIX)) return null;
-  const parts = room.slice(DM_PREFIX.length).split("..");
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
-  return [parts[0], parts[1]];
+  const payload = room.slice(DM_PREFIX.length);
+  const splitIndex = payload.indexOf("..");
+  if (splitIndex <= 0) return null;
+
+  const first = decodeDmParticipant(payload.slice(0, splitIndex));
+  const second = decodeDmParticipant(payload.slice(splitIndex + 2));
+  if (!first || !second) return null;
+  return [first, second];
 };
 
 export const canAccessRoom = (room: string, username: string) => {

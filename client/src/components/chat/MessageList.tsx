@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { CheckCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { format, isToday, isYesterday } from "date-fns";
+import { Check } from "lucide-react";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { FileAttachment } from "@/components/chat/FileAttachment";
+import { MessageStatus } from "@/components/chat/MessageStatus";
 import { CallHistoryItem } from "@/components/call/CallHistoryItem";
 import { MessageActionMenu, useLongPress, type MessageAction } from "@/components/chat/MessageActionMenu";
 import { ForwardDialog } from "@/components/chat/ForwardDialog";
@@ -10,46 +11,126 @@ import { formatMessageTime } from "@/lib/format";
 import { DELETED_MESSAGE_LABEL, messageKey } from "@/lib/messages";
 import { cn } from "@/lib/utils";
 import { downloadFileAsAttachment } from "@/lib/useFileBlob";
-import { deleteMessage, type CallHistoryEntry, type ChatMessage } from "@/pages/chat/api/api";
-import { useChatStore } from "@/pages/chat/store/chat-store";
-import { toastError, toastSuccess, toastWithUndo } from "@/lib/toast";
+import { useUserProfileImage } from "@/lib/use-user-profile-image";
+import { useSingleMessageActions } from "@/lib/use-message-bulk-actions";
+import type { CallHistoryEntry, ChatMessage } from "@/pages/chat/api/api";
+import { useChatStore, type MessageDeliveryStatus } from "@/pages/chat/store/chat-store";
+import { toastError, toastSuccess } from "@/lib/toast";
 import { useChatRoom } from "@/pages/chat/context/ChatRoomContext";
 
 type MessageBubbleProps = {
   message: ChatMessage;
   isOwn: boolean;
   showAvatar: boolean;
-  selected: boolean;
+  highlighted: boolean;
+  selectionMode: boolean;
+  isChecked: boolean;
+  deliveryStatus: MessageDeliveryStatus;
   onOpenMenu: (x: number, y: number) => void;
+  onToggleSelect: () => void;
 };
 
-const MessageBubble = ({ message, isOwn, showAvatar, selected, onOpenMenu }: MessageBubbleProps) => {
-  const isDeleted = !!message.deleted;
-  const isFile = !isDeleted && message.type === "file" && message.file;
-  const longPress = useLongPress(onOpenMenu);
+const MessageMeta = ({
+  at,
+  isDeleted,
+  isOwn,
+  isFile,
+  deliveryStatus,
+}: {
+  at: string;
+  isDeleted: boolean;
+  isOwn: boolean;
+  isFile: boolean;
+  deliveryStatus: MessageDeliveryStatus;
+}) => {
+  if (!isOwn) return null;
 
   return (
-    <div className={cn("flex gap-2", isOwn ? "flex-row-reverse" : "flex-row")}>
-      {!isOwn && showAvatar ? (
-        <UserAvatar name={message.user} className="mt-1 h-8 w-8 [&_span]:h-8 [&_span]:w-8" />
+    <div className={cn("flex items-center justify-end gap-1", isFile ? "px-2 pb-1 pt-0.5" : "mt-1")}>
+      <span
+        className={cn(
+          "text-[10px]",
+          isDeleted ? "text-muted-foreground" : "text-primary-foreground/70",
+        )}
+      >
+        {formatMessageTime(at)}
+      </span>
+      {!isDeleted && <MessageStatus status={deliveryStatus} className="text-primary-foreground/80" />}
+    </div>
+  );
+};
+
+const SelectionCheckbox = ({ checked, onToggle }: { checked: boolean; onToggle: () => void }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      onToggle();
+    }}
+    className={cn(
+      "mt-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+      checked ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/50 bg-background",
+    )}
+    aria-label={checked ? "Deselect message" : "Select message"}
+    aria-pressed={checked}
+  >
+    {checked && <Check className="h-3 w-3" strokeWidth={3} />}
+  </button>
+);
+
+const MessageBubble = ({
+  message,
+  isOwn,
+  showAvatar,
+  highlighted,
+  selectionMode,
+  isChecked,
+  deliveryStatus,
+  onOpenMenu,
+  onToggleSelect,
+}: MessageBubbleProps) => {
+  const isDeleted = !!message.deleted;
+  const isFile = !isDeleted && message.type === "file" && message.file;
+  const senderImage = useUserProfileImage(message.user);
+  const longPress = useLongPress((x, y) => {
+    if (selectionMode) onToggleSelect();
+    else onOpenMenu(x, y);
+  });
+
+  const handleClick = () => {
+    if (selectionMode && !isDeleted) onToggleSelect();
+  };
+
+  return (
+    <div className={cn("flex w-full gap-2", isOwn ? "justify-end" : "justify-start")}>
+      {selectionMode && <SelectionCheckbox checked={isChecked} onToggle={onToggleSelect} />}
+
+      {!isOwn && showAvatar && !selectionMode ? (
+        <UserAvatar
+          name={message.user}
+          imageUrl={senderImage}
+          className="mt-1 h-8 w-8 [&_span]:h-8 [&_span]:w-8"
+        />
       ) : (
-        !isOwn && <div className="w-8 shrink-0" />
+        !isOwn && !selectionMode && <div className="w-8 shrink-0" />
       )}
 
       <div className={cn("flex max-w-[70%] flex-col gap-1", isOwn ? "items-end" : "items-start")}>
         <div
           className={cn(
-            "rounded-2xl text-sm leading-relaxed transition-shadow select-none",
+            "rounded-2xl text-sm leading-relaxed transition-shadow",
+            selectionMode && !isDeleted ? "cursor-pointer" : "select-none",
             isFile ? "overflow-hidden p-1.5" : "px-4 py-2.5",
             isDeleted && "border border-dashed border-muted-foreground/30 bg-muted/40",
             !isDeleted &&
               (isOwn
                 ? "rounded-br-md bg-chat-outgoing text-primary-foreground"
                 : "rounded-bl-md bg-chat-incoming text-foreground"),
-            selected && "ring-2 ring-primary/60",
+            (highlighted || (selectionMode && isChecked)) && "ring-2 ring-primary/60",
           )}
+          onClick={handleClick}
           onContextMenu={(e) => {
-            if (isDeleted) return;
+            if (isDeleted || selectionMode) return;
             e.preventDefault();
             onOpenMenu(e.clientX, e.clientY);
           }}
@@ -76,29 +157,34 @@ const MessageBubble = ({ message, isOwn, showAvatar, selected, onOpenMenu }: Mes
               file={message.file!}
               caption={message.text !== message.file!.name ? message.text : undefined}
               isOwn={isOwn}
+              footer={
+                <MessageMeta
+                  at={message.at}
+                  isDeleted={isDeleted}
+                  isOwn={isOwn}
+                  isFile
+                  deliveryStatus={deliveryStatus}
+                />
+              }
             />
           ) : (
             <span className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{message.text}</span>
           )}
-          {isOwn && (
-            <div className={cn("flex items-center justify-end gap-1", isFile ? "px-2 pb-1" : "mt-1")}>
-              <span
-                className={cn(
-                  "text-[10px]",
-                  isDeleted ? "text-muted-foreground" : "text-primary-foreground/70",
-                )}
-              >
-                {formatMessageTime(message.at)}
-              </span>
-              {!isDeleted && <CheckCheck className="h-3.5 w-3.5 text-primary-foreground/80" />}
-            </div>
+          {!isFile && (
+            <MessageMeta
+              at={message.at}
+              isDeleted={isDeleted}
+              isOwn={isOwn}
+              isFile={false}
+              deliveryStatus={deliveryStatus}
+            />
           )}
         </div>
         {!isOwn && <span className="px-1 text-[10px] text-muted-foreground">{formatMessageTime(message.at)}</span>}
       </div>
     </div>
   );
-}
+};
 
 type DateSeparatorProps = {
   date: string;
@@ -115,7 +201,7 @@ export const DateSeparator = ({ date }: DateSeparatorProps) => {
       <span className="rounded-full bg-muted px-3 py-1 text-[11px] text-muted-foreground">{label}</span>
     </div>
   );
-}
+};
 
 type TimelineItem =
   | { kind: "message"; at: string; message: ChatMessage }
@@ -127,47 +213,42 @@ const buildTimeline = (messages: ChatMessage[], calls: CallHistoryEntry[]): Time
     ...calls.map((call) => ({ kind: "call" as const, at: call.startedAt, call })),
   ];
   return items.sort((a, b) => a.at.localeCompare(b.at));
-}
+};
 
 export const MessageList = () => {
   const { visibleMessages, visibleCalls, username: selfUsername, socket } = useChatRoom();
   const messages = visibleMessages;
   const calls = visibleCalls;
-  const setReplyTo = useChatStore((s) => s.setReplyTo);
-  const setForwardMessage = useChatStore((s) => s.setForwardMessage);
-  const hideMessageForMe = useChatStore((s) => s.hideMessageForMe);
-  const unhideMessageForMe = useChatStore((s) => s.unhideMessageForMe);
-  const markMessageDeleted = useChatStore((s) => s.markMessageDeleted);
-  const restoreMessage = useChatStore((s) => s.restoreMessage);
+  const messageStatus = useChatStore((s) => s.messageStatus);
+  const messageSelectionMode = useChatStore((s) => s.messageSelectionMode);
+  const selectedMessageKeys = useChatStore((s) => s.selectedMessageKeys);
+  const toggleMessageKey = useChatStore((s) => s.toggleMessageKey);
+  const exitMessageSelection = useChatStore((s) => s.exitMessageSelection);
+  const forwardBatch = useChatStore((s) => s.forwardBatch);
+  const setForwardBatch = useChatStore((s) => s.setForwardBatch);
+
+  const { runAction } = useSingleMessageActions();
 
   const [menu, setMenu] = useState<{ message: ChatMessage; x: number; y: number } | null>(null);
   const [forwardOpen, setForwardOpen] = useState(false);
-  const [forwardTarget, setForwardTarget] = useState<ChatMessage | null>(null);
 
   const timeline = buildTimeline(messages, calls);
 
-  const handleAction = async (action: MessageAction, message: ChatMessage) => {
-    const key = messageKey(message);
-    const copyText = message.deleted ? DELETED_MESSAGE_LABEL : message.type === "file" ? (message.file?.name ?? message.text) : message.text;
+  useEffect(() => {
+    if (forwardBatch.length === 0) return;
+    setForwardOpen(true);
+  }, [forwardBatch]);
 
-    if (action === "reply") {
-      setReplyTo(message);
-      return;
-    }
-    if (action === "copy") {
-      try {
-        await navigator.clipboard.writeText(copyText);
-        toastSuccess("Copied");
-      } catch {
-        toastError(null, "Could not copy");
-      }
-      return;
-    }
-    if (action === "forward") {
-      setForwardTarget(message);
-      setForwardOpen(true);
-      return;
-    }
+  useEffect(() => {
+    if (!messageSelectionMode) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") exitMessageSelection();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [exitMessageSelection, messageSelectionMode]);
+
+  const handleAction = async (action: MessageAction, message: ChatMessage) => {
     if (action === "download") {
       if (!message.file) return;
       try {
@@ -178,32 +259,7 @@ export const MessageList = () => {
       }
       return;
     }
-    if (action === "delete-me") {
-      hideMessageForMe(key);
-      toastWithUndo("Message deleted for you", {
-        onUndo: () => unhideMessageForMe(key),
-      });
-      return;
-    }
-    if (action === "delete-all") {
-      if (!message.id) {
-        toastError(null, "Cannot delete this message");
-        return;
-      }
-      const snapshot: ChatMessage = { ...message, file: message.file ? { ...message.file } : undefined };
-      markMessageDeleted({ ...message, deleted: true, text: "", file: undefined, type: "text" });
-      toastWithUndo("Message deleted for everyone", {
-        onUndo: () => restoreMessage(snapshot),
-        onCommit: async () => {
-          try {
-            await deleteMessage(message.room, message.id!);
-          } catch (error) {
-            restoreMessage(snapshot);
-            toastError(error, "Could not delete message");
-          }
-        },
-      });
-    }
+    await runAction(action, message, (batch) => setForwardBatch(batch));
   };
 
   if (timeline.length === 0) {
@@ -220,7 +276,7 @@ export const MessageList = () => {
   return (
     <>
       <div className="space-y-3 px-5 py-4">
-        {timeline.map((item, index) => {
+        {timeline.map((item) => {
           const dateKey = format(new Date(item.at), "yyyy-MM-dd");
           const showDate = dateKey !== lastDate;
           lastDate = dateKey;
@@ -239,6 +295,7 @@ export const MessageList = () => {
           const showAvatar = !isOwn && message.user !== lastUser;
           lastUser = message.user;
           const key = messageKey(message);
+          const isChecked = selectedMessageKeys.includes(key);
 
           return (
             <div key={key}>
@@ -247,8 +304,12 @@ export const MessageList = () => {
                 message={message}
                 isOwn={isOwn}
                 showAvatar={showAvatar}
-                selected={menu?.message ? messageKey(menu.message) === key : false}
+                highlighted={menu?.message ? messageKey(menu.message) === key : false}
+                selectionMode={messageSelectionMode && !message.deleted}
+                isChecked={isChecked}
+                deliveryStatus={message.id ? (messageStatus[message.id] ?? "sent") : "sent"}
                 onOpenMenu={(x, y) => !message.deleted && setMenu({ message, x, y })}
+                onToggleSelect={() => !message.deleted && toggleMessageKey(key)}
               />
             </div>
           );
@@ -269,14 +330,14 @@ export const MessageList = () => {
 
       <ForwardDialog
         open={forwardOpen}
-        message={forwardTarget}
+        messages={forwardBatch}
         socket={socket}
         onClose={() => {
           setForwardOpen(false);
-          setForwardTarget(null);
-          setForwardMessage(null);
+          setForwardBatch([]);
+          exitMessageSelection();
         }}
       />
     </>
   );
-}
+};

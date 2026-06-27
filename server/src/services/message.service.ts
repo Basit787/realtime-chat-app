@@ -2,6 +2,13 @@ import { Message } from "../models/index.js";
 import type { ChatMessageDto, MessageFileDto } from "../types/api.js";
 import type { AuthUser } from "../types/index.js";
 import type { SharedFileDocument } from "../models/SharedFile.js";
+import { dmRoomAliases, parseDmRoom } from "../utils/room.js";
+
+const dmRoomsToQuery = (room: string): string[] => {
+  const participants = parseDmRoom(room);
+  if (!participants) return [room];
+  return dmRoomAliases(participants[0], participants[1]);
+};
 
 const toMessagePayload = (message: {
   id: string;
@@ -27,7 +34,8 @@ const toMessagePayload = (message: {
 };
 
 const getRoomMessages = async (room: string): Promise<ChatMessageDto[]> => {
-  const messages = await Message.find({ room }).sort({ at: 1 }).limit(200).lean();
+  const rooms = dmRoomsToQuery(room);
+  const messages = await Message.find({ room: { $in: rooms } }).sort({ at: 1 }).limit(200).lean();
   return messages.map((message) =>
     toMessagePayload({
       id: message._id.toString(),

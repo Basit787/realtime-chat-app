@@ -19,3 +19,6 @@ export const formatForwardText = (message: ChatMessage) => {
   }
   return `↪ ${message.text}`;
 };
+
+export const messagesCopyText = (messages: ChatMessage[]) =>
+  messages.map((message) => messagePreview(message)).join("\n\n");

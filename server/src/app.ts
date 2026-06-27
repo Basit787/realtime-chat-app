@@ -18,7 +18,7 @@ export const createApp = (auth: AppAuth) => {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
           scriptSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", "data:", "https://validator.swagger.io"],
+          imgSrc: ["'self'", "data:", "blob:", "https://validator.swagger.io"],
         },
       },
     }),

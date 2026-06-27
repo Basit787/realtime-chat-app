@@ -3,5 +3,7 @@ RUN corepack enable pnpm
 WORKDIR /app
 COPY package.json pnpm-lock.yaml .npmrc* ./
 RUN pnpm install --frozen-lockfile
+COPY public ./public
+COPY index.html vite.config.ts tsconfig.json components.json ./
 EXPOSE 5176
 CMD ["pnpm", "dev", "--host", "0.0.0.0", "--port", "5176"]

@@ -3,6 +3,5 @@ RUN corepack enable pnpm
 WORKDIR /app
 COPY package.json pnpm-lock.yaml .npmrc* ./
 RUN pnpm install --frozen-lockfile
-RUN mkdir -p /data/uploads
 EXPOSE 3004
 CMD ["pnpm", "dev"]

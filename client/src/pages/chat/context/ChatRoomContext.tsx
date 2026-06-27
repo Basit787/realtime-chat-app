@@ -18,6 +18,8 @@ type ChatRoomActions = {
   startAudioCall: () => void;
   startVideoCall: () => void;
   endCall: () => void;
+  acceptIncomingDmCall: () => void;
+  acceptIncomingGroupCall: () => void;
   openGroupInfo: () => void;
   closeGroupInfo: () => void;
 };
@@ -60,15 +62,17 @@ export const ChatRoomProvider = ({ children }: { children: ReactNode }) => {
   const groups = useChatStore((s) => s.groups);
   const hiddenMessageIds = useChatStore((s) => s.hiddenMessageIds);
   const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
 
   const room = conversationToRoom(activeConversationId, username);
   const isDm = isDmConversation(activeConversationId);
-  const isGroup = !isDm;
+  const isCustomGroup = isGroupRoom(activeConversationId);
+  const isGroup = isCustomGroup;
 
   useChat();
   const socket = useSocket();
-  const dmCall = useWebRTC({ socket, selfUsername: username, enabled: !!socket && isDm });
-  const groupCall = useGroupWebRTC({ socket, selfUsername: username, room, enabled: !!socket && isGroup });
+  const dmCall = useWebRTC({ socket, selfUsername: username, enabled: !!socket });
+  const groupCall = useGroupWebRTC({ socket, selfUsername: username, enabled: !!socket });
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevConversationRef = useRef(activeConversationId);
@@ -105,29 +109,45 @@ export const ChatRoomProvider = ({ children }: { children: ReactNode }) => {
       dmCall.startCall(callPeer, "audio");
       return;
     }
+    if (!isCustomGroup) return;
     if (groupCall.roomCall) {
       groupCall.joinGroupCall(room);
       return;
     }
     groupCall.startGroupCall(room, "audio");
-  }, [callPeer, dmCall, groupCall, isDm, room]);
+  }, [callPeer, dmCall, groupCall, isCustomGroup, isDm, room]);
 
   const startVideoCall = useCallback(() => {
     if (isDm && callPeer) {
       dmCall.startCall(callPeer, "video");
       return;
     }
+    if (!isCustomGroup) return;
     if (groupCall.roomCall) {
       groupCall.joinGroupCall(room);
       return;
     }
     groupCall.startGroupCall(room, "video");
-  }, [callPeer, dmCall, groupCall, isDm, room]);
+  }, [callPeer, dmCall, groupCall, isCustomGroup, isDm, room]);
 
   const endCall = useCallback(() => {
     if (dmCall.inCall) dmCall.endCall();
     if (groupCall.inGroupCall) groupCall.leaveGroupCall();
   }, [dmCall, groupCall]);
+
+  const acceptIncomingDmCall = useCallback(() => {
+    const peer = dmCall.incomingCall?.username;
+    if (peer) setActiveConversation(peer);
+    void dmCall.acceptCall();
+  }, [dmCall, setActiveConversation]);
+
+  const acceptIncomingGroupCall = useCallback(() => {
+    const callRoom = groupCall.roomCall?.room;
+    if (!callRoom) return;
+    const group = groups.find((g) => g.room === callRoom);
+    if (group) setActiveConversation(group.room);
+    groupCall.joinGroupCall(callRoom);
+  }, [groupCall, groups, setActiveConversation]);
 
   const openGroupInfo = useCallback(() => setGroupInfoOpen(true), []);
   const closeGroupInfo = useCallback(() => setGroupInfoOpen(false), []);
@@ -137,10 +157,12 @@ export const ChatRoomProvider = ({ children }: { children: ReactNode }) => {
       startAudioCall,
       startVideoCall,
       endCall,
+      acceptIncomingDmCall,
+      acceptIncomingGroupCall,
       openGroupInfo,
       closeGroupInfo,
     }),
-    [startAudioCall, startVideoCall, endCall, openGroupInfo, closeGroupInfo],
+    [startAudioCall, startVideoCall, endCall, acceptIncomingDmCall, acceptIncomingGroupCall, openGroupInfo, closeGroupInfo],
   );
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { formatConversationTime } from "@/lib/format";
+import { useUserProfileImage } from "@/lib/use-user-profile-image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -12,6 +13,10 @@ type ConversationItemProps = {
 };
 
 export const ConversationItem = ({ conversation, active, onClick, icon }: ConversationItemProps) => {
+  const unread = conversation.unreadCount ?? 0;
+  const hasUnread = unread > 0;
+  const profileImage = useUserProfileImage(conversation.name);
+
   return (
     <Button
       type="button"
@@ -23,26 +28,36 @@ export const ConversationItem = ({ conversation, active, onClick, icon }: Conver
       )}
     >
       {active && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-primary" />}
-      {icon ?? (
-        <UserAvatar
-          name={conversation.name}
-          showOnline={conversation.type === "dm"}
-          status={conversation.presenceStatus}
-        />
-      )}
+      <div className="relative shrink-0">
+        {icon ?? (
+          <UserAvatar
+            name={conversation.name}
+            imageUrl={conversation.type === "dm" ? profileImage : undefined}
+            showOnline={conversation.type === "dm"}
+            status={conversation.presenceStatus}
+          />
+        )}
+        {hasUnread && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium">
+          <span className={cn("truncate text-sm font-medium", hasUnread && "font-semibold text-foreground")}>
             {conversation.type === "channel" ? `# ${conversation.name}` : conversation.name}
           </span>
           {conversation.lastAt && (
-            <span className="shrink-0 text-[11px] text-muted-foreground">
+            <span className={cn("shrink-0 text-[11px]", hasUnread ? "font-medium text-primary" : "text-muted-foreground")}>
               {formatConversationTime(conversation.lastAt)}
             </span>
           )}
         </div>
         {conversation.lastMessage && (
-          <p className="truncate text-xs text-muted-foreground">{conversation.lastMessage}</p>
+          <p className={cn("truncate text-xs", hasUnread ? "font-medium text-foreground" : "text-muted-foreground")}>
+            {conversation.lastMessage}
+          </p>
         )}
       </div>
     </Button>
