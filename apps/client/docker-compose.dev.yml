@@ -1,0 +1,31 @@
+# Client (dev). Started from the repo root through ../../docker-compose.dev.yml (it depends on the server service);
+# variables come from ./.env (see .env.example).
+
+services:
+  client:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: dev
+      args:
+        APP: "@chat/client"
+    restart: unless-stopped
+    ports:
+      - "5176:5176"
+    environment:
+      API_PROXY_TARGET: http://server:3004
+      CHOKIDAR_USEPOLLING: "true"
+      # Serve https://<host>:5176 with a self-signed cert so phones on the LAN can use camera/mic
+      DEV_HTTPS: ${DEV_HTTPS:-true}
+    volumes:
+      - ./src:/repo/apps/client/src
+      - ./public:/repo/apps/client/public
+      - ./index.html:/repo/apps/client/index.html
+      - ./vite.config.ts:/repo/apps/client/vite.config.ts
+      - ./tsconfig.json:/repo/apps/client/tsconfig.json
+      - ./components.json:/repo/apps/client/components.json
+      # Shared packages: their tsup watchers rebuild dist/ on edits
+      - ../../packages/ui/src:/repo/packages/ui/src
+      - ../../packages/frontend-common/src:/repo/packages/frontend-common/src
+    depends_on:
+      - server

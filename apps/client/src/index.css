@@ -1,0 +1,5 @@
+@import "tailwindcss";
+/* Design tokens, theme and base styles come from the shared design system package */
+@import "@chat/ui/styles.css";
+/* Class names produced by shared helpers (e.g. getAvatarColor) must be generated too */
+@source "../../../packages/frontend-common/src";

@@ -23,14 +23,41 @@ Or:
 | **MinIO Console** | http://localhost:9001 (login: minioadmin / minioadmin) |
 | **TURN/STUN** (coturn) | localhost:3478 |
 
-Copy `.env.example` to `.env` to customize secrets and TURN settings.
+Copy `apps/server/.env.example` to `apps/server/.env` (and `apps/client/.env.example` to `apps/client/.env`) to customize secrets and TURN settings; compose reads each app's `.env` from its own folder.
 
 ## Development (live reload)
 
-`make` / `./up.sh` starts Docker with **hot reload** — edit `client/src` or `server/src` and changes apply without restarting containers.
+`make` / `./up.sh` starts Docker with **hot reload** — edit `apps/client/src` or `apps/server/src` and changes apply without restarting containers.
 
 - **Client:** Vite dev server + HMR on port 5176
 - **Server:** `tsx watch` restarts on file changes
+
+## Monorepo
+
+pnpm workspaces + [Turborepo](https://turborepo.com):
+
+```text
+apps/client              React + Vite app (@chat/client)
+apps/server              Express + Socket.IO API (@chat/server)
+packages/ui              design system: Tailwind theme/styles + UI primitives, built to dist/ (@chat/ui)
+packages/frontend-common shared React hooks and helpers
+packages/backend-common  shared Express helpers: errors, async handler, validation, S3/MinIO storage + uploads
+packages/eslint-config   shared ESLint presets (base / react / node)
+packages/prettier-config shared Prettier config
+packages/tsconfig        shared TypeScript presets
+docker/Dockerfile        the one image definition for every app (APP build arg, dev/prod targets)
+```
+
+Each app owns its compose files and `.env` (`apps/<app>/docker-compose.{dev,prod}.yml`, `apps/<app>/.env.example`); the server's also start MongoDB, MinIO and coturn. The root `docker-compose.dev.yml` / `docker-compose.prod.yml` just `include` them.
+
+
+All dependency versions are declared once in the root `pnpm-workspace.yaml` catalog; packages reference them with `"catalog:"`.
+
+```bash
+npx -y pnpm@10.12.1 install                    # or `pnpm install` if pnpm is installed
+npx -y pnpm@10.12.1 turbo run build            # builds packages, then apps
+npx -y pnpm@10.12.1 turbo run typecheck lint
+```
 
 If you add npm dependencies, rebuild app images:
 
@@ -111,12 +138,11 @@ On a remote server set in `.env`:
 ## Local dev (without Docker)
 
 ```bash
-# Terminal 1 — server
-cd server && pnpm install && pnpm db:up && pnpm dev
-
-# Terminal 2 — client
-cd client && pnpm install && pnpm dev
+pnpm install
+pnpm turbo run dev   # watches the packages and runs the server and client together
 ```
+
+The server needs MongoDB and MinIO running (for example the `mongo` and `minio` services from `docker-compose.dev.yml`).
 
 Client dev server: http://localhost:5176 (proxies API to port 3004).
 

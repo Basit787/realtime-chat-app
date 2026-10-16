@@ -1,0 +1,49 @@
+{
+  "name": "@chat/client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check",
+    "start": "vite preview --host 0.0.0.0 --port 80"
+  },
+  "dependencies": {
+    "@chat/frontend-common": "workspace:*",
+    "@chat/ui": "workspace:*",
+    "@hookform/resolvers": "catalog:",
+    "@radix-ui/react-tooltip": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "axios": "catalog:",
+    "date-fns": "catalog:",
+    "lucide-react": "catalog:",
+    "next-themes": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hook-form": "catalog:",
+    "socket.io-client": "catalog:",
+    "sonner": "catalog:",
+    "zod": "catalog:",
+    "zustand": "catalog:"
+  },
+  "devDependencies": {
+    "@chat/eslint-config": "workspace:*",
+    "@chat/prettier-config": "workspace:*",
+    "@chat/tsconfig": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-basic-ssl": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  },
+  "prettier": "@chat/prettier-config"
+}
