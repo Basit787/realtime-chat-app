@@ -1,0 +1,29 @@
+import { serviceUrl } from "ports";
+import { Link2, MessageCircle, type LucideIcon } from "lucide-react";
+
+export type AppEntry = {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  icon: LucideIcon;
+};
+
+// Every project reachable from home; add new apps here
+export const APPS: AppEntry[] = [
+  {
+    id: "chat",
+    name: "Chat Application",
+    description: "Messages, groups, file sharing and audio/video calls.",
+    // Same host the launcher was opened from (localhost, 192.168.x.x, ...)
+    url: import.meta.env.VITE_CHAT_APP_URL || serviceUrl("chatAppFrontend"),
+    icon: MessageCircle,
+  },
+  {
+    id: "link-shortener",
+    name: "Link Shortener",
+    description: "Create short links and track their clicks.",
+    url: serviceUrl("linkShortener"),
+    icon: Link2,
+  },
+];

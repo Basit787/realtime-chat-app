@@ -1,0 +1,49 @@
+{
+  "name": "@chat/link-shortener",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 5178",
+    "build": "next build",
+    "start": "next start -p 5178",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "*",
+    "date-fns": "*",
+    "drizzle-orm": "*",
+    "frontend-common": "workspace:*",
+    "jose": "*",
+    "lucide-react": "*",
+    "next": "*",
+    "pg": "*",
+    "ports": "workspace:*",
+    "pui": "workspace:*",
+    "react": "*",
+    "react-dom": "*",
+    "sonner": "*",
+    "zod": "*"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "*",
+    "@types/node": "*",
+    "@types/pg": "*",
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "drizzle-kit": "*",
+    "eslint": "*",
+    "eslint-config": "workspace:*",
+    "prettier-config": "workspace:*",
+    "tailwindcss": "*",
+    "typescript": "*"
+  },
+  "prettier": "prettier-config"
+}

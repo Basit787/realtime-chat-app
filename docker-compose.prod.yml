@@ -1,7 +1,0 @@
-# Whole stack (prod): each app owns its compose file and the services it needs.
-# Fixed project name so containers and data volumes keep their names.
-name: realtime-chat-app
-
-include:
-  - apps/server/docker-compose.prod.yml
-  - apps/client/docker-compose.prod.yml

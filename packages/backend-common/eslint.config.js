@@ -1,1 +1,1 @@
-export { default } from "@chat/eslint-config/node";
+export { default } from "eslint-config/node";

@@ -1,11 +1,9 @@
 {
-  "extends": "@chat/tsconfig/node.json",
+  "extends": "tsconfig/node.json",
   "compilerOptions": {
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src"
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

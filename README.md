@@ -11,7 +11,7 @@ make
 Or:
 
 ```bash
-./up.sh
+./docker/up.sh
 ```
 
 | Service | URL / Port |
@@ -27,7 +27,7 @@ Copy `apps/server/.env.example` to `apps/server/.env` (and `apps/client/.env.exa
 
 ## Development (live reload)
 
-`make` / `./up.sh` starts Docker with **hot reload** — edit `apps/client/src` or `apps/server/src` and changes apply without restarting containers.
+`make` / `./docker/up.sh` starts Docker with **hot reload** — edit `apps/client/src` or `apps/server/src` and changes apply without restarting containers.
 
 - **Client:** Vite dev server + HMR on port 5176
 - **Server:** `tsx watch` restarts on file changes
@@ -39,19 +39,19 @@ pnpm workspaces + [Turborepo](https://turborepo.com):
 ```text
 apps/client              React + Vite app (@chat/client)
 apps/server              Express + Socket.IO API (@chat/server)
-packages/ui              design system: Tailwind theme/styles + UI primitives, built to dist/ (@chat/ui)
-packages/frontend-common shared React hooks and helpers
+apps/mobile              Expo + NativeWind app (@chat/mobile)
+packages/ui              design system for both clients: src/web (@chat/ui), src/native (@chat/ui/native), src/styles (web.css → generated native.css)
+packages/frontend-common shared by web and mobile: chat types, endpoints, room naming, message/presence helpers, formatters
 packages/backend-common  shared Express helpers: errors, async handler, validation, S3/MinIO storage + uploads
-packages/eslint-config   shared ESLint presets (base / react / node)
+packages/eslint-config   shared ESLint presets (base / react / react-native / node)
 packages/prettier-config shared Prettier config
 packages/tsconfig        shared TypeScript presets
-docker/Dockerfile        the one image definition for every app (APP build arg, dev/prod targets)
+docker/                  all Docker setup: the one Dockerfile (APP build arg, dev/prod targets), its .dockerignore, the stack compose files, compose.sh and up.sh
 ```
 
-Each app owns its compose files and `.env` (`apps/<app>/docker-compose.{dev,prod}.yml`, `apps/<app>/.env.example`); the server's also start MongoDB, MinIO and coturn. The root `docker-compose.dev.yml` / `docker-compose.prod.yml` just `include` them.
+Each app owns its compose files and `.env` (`apps/<app>/docker-compose.{dev,prod}.yml`, `apps/<app>/.env.example`); the server's also start MongoDB, MinIO and coturn. `make` runs `docker/compose.sh`, which regenerates `docker/docker-compose.{dev,prod}.yml` to `include` every app's compose file, so a new app only needs its own.
 
-
-All dependency versions are declared once in the root `pnpm-workspace.yaml` catalog; packages reference them with `"catalog:"`.
+All dependency versions are declared once in the root `pnpm-workspace.yaml`: `"catalog:"` for shared ones, `"catalog:native"` for Expo / React Native ones.
 
 ```bash
 npx -y pnpm@10.12.1 install                    # or `pnpm install` if pnpm is installed
@@ -70,6 +70,18 @@ For a production-style build (static client, compiled server):
 ```bash
 make prod
 ```
+
+## Mobile app
+
+`apps/mobile` is an Expo development build (calls need native WebRTC, so Expo Go cannot run it).
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env   # set EXPO_PUBLIC_API_URL to your computer's LAN IP, e.g. http://192.168.1.20:3004
+pnpm --filter @chat/mobile exec expo run:ios   # or expo run:android — builds and installs the app once
+pnpm --filter @chat/mobile dev                 # afterwards: Metro with hot reload
+```
+
+Push notifications (messages and incoming calls when the app is closed) need an EAS project: run `eas init` in `apps/mobile`, and add FCM / APNs credentials with `eas credentials` for real devices.
 
 ## Default admin
 
@@ -142,7 +154,7 @@ pnpm install
 pnpm turbo run dev   # watches the packages and runs the server and client together
 ```
 
-The server needs MongoDB and MinIO running (for example the `mongo` and `minio` services from `docker-compose.dev.yml`).
+The server needs MongoDB and MinIO running (for example the `mongo` and `minio` services from `docker/docker-compose.dev.yml`).
 
 Client dev server: http://localhost:5176 (proxies API to port 3004).
 

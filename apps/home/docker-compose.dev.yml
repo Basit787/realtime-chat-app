@@ -1,0 +1,28 @@
+# Home (dev): the app launcher. Started from the repo root through ../../docker/docker-compose.dev.yml (it needs the auth service);
+# variables come from ./.env (see .env.example).
+
+services:
+  home:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: dev
+      args:
+        APP: "@chat/home"
+    restart: unless-stopped
+    ports:
+      - "5177:5177"
+    environment:
+      AUTH_PROXY_TARGET: http://auth:3005
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./src:/repo/apps/home/src
+      - ./public:/repo/apps/home/public
+      - ./index.html:/repo/apps/home/index.html
+      - ./vite.config.ts:/repo/apps/home/vite.config.ts
+      - ./tsconfig.json:/repo/apps/home/tsconfig.json
+      - ../../packages/pui/src:/repo/packages/pui/src
+      - ../../packages/frontend-common/src:/repo/packages/frontend-common/src
+      - ../../packages/ports/src:/repo/packages/ports/src
+    depends_on:
+      - auth

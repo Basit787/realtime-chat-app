@@ -1,0 +1,120 @@
+# Chat backend (dev) plus the infrastructure only it uses: MongoDB, MinIO (+ bucket setup) and coturn.
+# Started from the repo root through ../../docker/docker-compose.dev.yml; variables come from ./.env (see .env.example).
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      retries: 5
+
+  minio:
+    image: pgsty/minio:latest # minio/minio was removed from Docker Hub; community build
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: pgsty/mc:latest # minio/mc was removed from Docker Hub; community build
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_HOST: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chat-uploads}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mc alias set local "http://$$MINIO_HOST" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb "local/$$MINIO_BUCKET" --ignore-existing
+        mc anonymous set none "local/$$MINIO_BUCKET"
+        echo "MinIO bucket '$$MINIO_BUCKET' is ready."
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+    command: >
+      -n --log-file=stdout
+      --listening-port=3478
+      --fingerprint
+      --lt-cred-mech
+      --user=${TURN_USER:-chat}:${TURN_PASSWORD:-chatpass}
+      --realm=realtime-chat
+      --external-ip=${TURN_EXTERNAL_IP:-127.0.0.1}
+
+  chat-app-backend:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: dev
+      args:
+        APP: "@chat/chat-app-backend"
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: development
+      # File events don't reach containers reliably on macOS; poll so `nest start --watch` reloads on edits
+      TSC_WATCHFILE: DynamicPriorityPolling
+      TSC_WATCHDIRECTORY: DynamicPriorityPolling
+      MONGODB_URI: mongodb://mongo:27017/realtime_chat
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3005/.well-known/jwks.json}
+      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3005}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:-chatwave}
+      MAX_FILE_SIZE_MB: "25"
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chat-uploads}
+      MINIO_REGION: us-east-1
+      TURN_HOST: ${TURN_HOST:-localhost}
+      TURN_PORT: "3478"
+      TURN_USER: ${TURN_USER:-chat}
+      TURN_PASSWORD: ${TURN_PASSWORD:-chatpass}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5176,http://localhost:80}
+      ALLOW_LAN_ORIGINS: ${ALLOW_LAN_ORIGINS:-true}
+    volumes:
+      - ./src:/repo/apps/chat-app-backend/src
+      - ./libs:/repo/apps/chat-app-backend/libs
+      - ./package.json:/repo/apps/chat-app-backend/package.json
+      - ./nest-cli.json:/repo/apps/chat-app-backend/nest-cli.json
+      - ./tsconfig.json:/repo/apps/chat-app-backend/tsconfig.json
+      - ./tsconfig.build.json:/repo/apps/chat-app-backend/tsconfig.build.json
+      - ./eslint.config.js:/repo/apps/chat-app-backend/eslint.config.js
+      - ../../packages/backend-common/src:/repo/packages/backend-common/src
+      - ../../packages/ports/src:/repo/packages/ports/src
+    depends_on:
+      mongo:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      coturn:
+        condition: service_started
+
+volumes:
+  mongo_data:
+  minio_data:

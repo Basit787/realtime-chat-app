@@ -1,5 +1,5 @@
-COMPOSE_DEV := docker compose -f docker-compose.dev.yml
-COMPOSE_PROD := docker compose -f docker-compose.prod.yml
+COMPOSE_DEV := bash docker/compose.sh dev
+COMPOSE_PROD := bash docker/compose.sh prod
 
 .PHONY: up down prod logs rebuild
 
@@ -14,9 +14,11 @@ down: ## Stop all containers
 prod: ## Start production build (no live reload)
 	$(COMPOSE_PROD) up --build -d
 
-logs: ## Follow container logs
-	$(COMPOSE_DEV) logs -f server client
+APPS := auth chat-app-backend chat-app-frontend home link-shortener
+
+logs: ## Follow app container logs
+	$(COMPOSE_DEV) logs -f $(APPS)
 
 rebuild: ## Rebuild dev images after dependency changes
-	$(COMPOSE_DEV) build --no-cache server client
-	$(COMPOSE_DEV) up -d server client
+	$(COMPOSE_DEV) build --no-cache $(APPS)
+	$(COMPOSE_DEV) up -d $(APPS)

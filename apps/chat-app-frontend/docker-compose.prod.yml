@@ -1,0 +1,20 @@
+# Chat frontend (prod). Started from the repo root via `make prod` through ../../docker/docker-compose.prod.yml (it needs the backend and auth services);
+# variables come from ./.env (see .env.example).
+
+services:
+  chat-app-frontend:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: prod
+      args:
+        APP: "@chat/chat-app-frontend"
+    restart: unless-stopped
+    ports:
+      - "5176:80"
+    environment:
+      API_PROXY_TARGET: http://chat-app-backend:3004
+      AUTH_PROXY_TARGET: http://auth:3005
+    depends_on:
+      - chat-app-backend
+      - auth

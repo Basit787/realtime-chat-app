@@ -1,0 +1,32 @@
+# Auth service (prod); uses the MongoDB and MinIO started by apps/chat-app-backend's compose file.
+# Started from the repo root through ../../docker/docker-compose.prod.yml; variables come from ./.env (see .env.example).
+
+services:
+  auth:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: prod
+      args:
+        APP: "@chat/auth"
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    environment:
+      NODE_ENV: production
+      PORT: "3005"
+      MONGODB_URI: mongodb://mongo:27017/realtime_chat
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-secret-change-me}
+      AUTH_PUBLIC_URL: ${AUTH_PUBLIC_URL:-http://localhost:3005}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:-chatwave}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@chat.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
+      ADMIN_NAME: ${ADMIN_NAME:-admin}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chat-uploads}
+      MINIO_REGION: us-east-1
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5176,http://localhost:5177,http://localhost:80}
+      ALLOW_LAN_ORIGINS: ${ALLOW_LAN_ORIGINS:-false}

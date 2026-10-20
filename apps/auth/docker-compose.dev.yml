@@ -1,0 +1,45 @@
+# Auth service (dev); uses the MongoDB and MinIO started by apps/chat-app-backend's compose file.
+# Started from the repo root through ../../docker/docker-compose.dev.yml; variables come from ./.env (see .env.example).
+
+services:
+  auth:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: dev
+      args:
+        APP: "@chat/auth"
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    environment:
+      NODE_ENV: development
+      # Poll so `nest start --watch` reloads on edits from macOS
+      TSC_WATCHFILE: DynamicPriorityPolling
+      TSC_WATCHDIRECTORY: DynamicPriorityPolling
+      PORT: "3005"
+      MONGODB_URI: mongodb://mongo:27017/realtime_chat
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-secret-change-me}
+      AUTH_PUBLIC_URL: ${AUTH_PUBLIC_URL:-http://localhost:3005}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:-chatwave}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@chat.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
+      ADMIN_NAME: ${ADMIN_NAME:-admin}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chat-uploads}
+      MINIO_REGION: us-east-1
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5176,http://localhost:5177,http://localhost:80}
+      ALLOW_LAN_ORIGINS: ${ALLOW_LAN_ORIGINS:-true}
+    volumes:
+      - ./src:/repo/apps/auth/src
+      - ./libs:/repo/apps/auth/libs
+      - ./package.json:/repo/apps/auth/package.json
+      - ./nest-cli.json:/repo/apps/auth/nest-cli.json
+      - ./tsconfig.json:/repo/apps/auth/tsconfig.json
+      - ./tsconfig.build.json:/repo/apps/auth/tsconfig.build.json
+      - ./eslint.config.js:/repo/apps/auth/eslint.config.js
+      - ../../packages/backend-common/src:/repo/packages/backend-common/src
+      - ../../packages/ports/src:/repo/packages/ports/src

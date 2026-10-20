@@ -1,19 +1,21 @@
 {
-  "name": "@chat/eslint-config",
+  "name": "eslint-config",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     "./base": "./base.js",
     "./react": "./react.js",
-    "./node": "./node.js"
+    "./node": "./node.js",
+    "./next": "./next.js"
   },
   "dependencies": {
-    "@eslint/js": "catalog:",
-    "eslint": "catalog:",
-    "eslint-config-prettier": "catalog:",
-    "eslint-plugin-react-hooks": "catalog:",
-    "eslint-plugin-react-refresh": "catalog:",
-    "typescript-eslint": "catalog:"
+    "@eslint/js": "*",
+    "eslint": "*",
+    "eslint-config-next": "*",
+    "eslint-config-prettier": "*",
+    "eslint-plugin-react-hooks": "*",
+    "eslint-plugin-react-refresh": "*",
+    "typescript-eslint": "*"
   }
 }

@@ -22,4 +22,5 @@ const subscribeVisibility = (onChange: () => void) => {
   return () => document.removeEventListener("visibilitychange", onChange);
 };
 
-export const usePageVisible = () => useSyncExternalStore(subscribeVisibility, () => document.visibilityState === "visible");
+export const usePageVisible = () =>
+  useSyncExternalStore(subscribeVisibility, () => document.visibilityState === "visible");

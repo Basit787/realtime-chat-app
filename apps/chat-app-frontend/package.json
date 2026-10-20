@@ -1,0 +1,56 @@
+{
+  "name": "@chat/chat-app-frontend",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite preview --host 0.0.0.0 --port 80",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check"
+  },
+  "dependencies": {
+    "frontend-common": "workspace:*",
+    "pui": "workspace:*",
+    "@hookform/resolvers": "*",
+    "@tanstack/react-devtools": "*",
+    "@tanstack/react-query": "*",
+    "@tanstack/react-router": "*",
+    "@tanstack/react-router-devtools": "*",
+    "date-fns": "*",
+    "lucide-react": "*",
+    "react": "*",
+    "react-dom": "*",
+    "react-hook-form": "*",
+    "socket.io-client": "*",
+    "sonner": "*",
+    "zod": "*",
+    "zustand": "*"
+  },
+  "devDependencies": {
+    "eslint-config": "workspace:*",
+    "ports": "workspace:*",
+    "prettier-config": "workspace:*",
+    "tsconfig": "workspace:*",
+    "@tailwindcss/vite": "*",
+    "@tanstack/devtools-vite": "*",
+    "@tanstack/router-plugin": "*",
+    "@types/node": "*",
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "@vitejs/plugin-basic-ssl": "*",
+    "@vitejs/plugin-react": "*",
+    "tailwindcss": "*",
+    "typescript": "*",
+    "vite": "*"
+  },
+  "prettier": "prettier-config"
+}

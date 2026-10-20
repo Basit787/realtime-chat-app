@@ -1,0 +1,18 @@
+# Home (prod): the app launcher. Started from the repo root via `make prod` through ../../docker/docker-compose.prod.yml (it needs the auth service);
+# variables come from ./.env (see .env.example).
+
+services:
+  home:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: prod
+      args:
+        APP: "@chat/home"
+    restart: unless-stopped
+    ports:
+      - "5177:80"
+    environment:
+      AUTH_PROXY_TARGET: http://auth:3005
+    depends_on:
+      - auth

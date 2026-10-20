@@ -1,4 +1,4 @@
-/** Body of every error reply (see `errorHandler`); the client reads it in `getResponseMessage`. */
+// Body of every error reply; the clients read `error`
 export interface ApiErrorResponse {
   error: string;
   details?: Record<string, string[] | undefined>;

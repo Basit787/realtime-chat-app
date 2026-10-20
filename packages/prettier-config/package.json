@@ -1,5 +1,5 @@
 {
-  "name": "@chat/prettier-config",
+  "name": "prettier-config",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,6 @@
     ".": "./index.json"
   },
   "dependencies": {
-    "prettier": "catalog:"
+    "prettier": "*"
   }
 }

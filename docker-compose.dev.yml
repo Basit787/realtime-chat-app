@@ -1,7 +1,0 @@
-# Whole stack (dev): each app owns its compose file and the services it needs.
-# Fixed project name so containers and data volumes keep their names.
-name: realtime-chat-app
-
-include:
-  - apps/server/docker-compose.dev.yml
-  - apps/client/docker-compose.dev.yml

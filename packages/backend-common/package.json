@@ -1,9 +1,9 @@
 {
-  "name": "@chat/backend-common",
+  "name": "backend-common",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "prettier": "@chat/prettier-config",
+  "prettier": "prettier-config",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -22,22 +22,15 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "catalog:",
-    "multer": "catalog:"
-  },
-  "peerDependencies": {
-    "express": "catalog:",
-    "zod": "catalog:"
+    "@aws-sdk/client-s3": "*",
+    "multer": "*"
   },
   "devDependencies": {
-    "@chat/eslint-config": "workspace:*",
-    "@chat/prettier-config": "workspace:*",
-    "@chat/tsconfig": "workspace:*",
-    "@types/express": "catalog:",
-    "@types/multer": "catalog:",
-    "express": "catalog:",
-    "tsup": "catalog:",
-    "typescript": "catalog:",
-    "zod": "catalog:"
+    "eslint-config": "workspace:*",
+    "prettier-config": "workspace:*",
+    "tsconfig": "workspace:*",
+    "@types/multer": "*",
+    "tsup": "*",
+    "typescript": "*"
   }
 }

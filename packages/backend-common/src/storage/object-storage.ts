@@ -1,5 +1,4 @@
 import { Readable } from "node:stream";
-import type { Response } from "express";
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
@@ -110,31 +109,7 @@ export const createObjectStorage = (config: ObjectStorageConfig) => {
     return null;
   };
 
-  /** Pipes an object to the HTTP response (404 JSON if missing); returns whether it was found. */
-  const streamToResponse = async (
-    res: Response,
-    key: string,
-    options?: { downloadName?: string; inline?: boolean },
-  ) => {
-    const object = await getObject(key);
-    if (!object) {
-      res.status(404).json({ error: "File not found" });
-      return false;
-    }
-
-    if (object.contentType) res.setHeader("Content-Type", object.contentType);
-    if (object.contentLength) res.setHeader("Content-Length", String(object.contentLength));
-    if (options?.inline) {
-      res.setHeader("Content-Disposition", "inline");
-    } else if (options?.downloadName) {
-      res.setHeader("Content-Disposition", `attachment; filename="${options.downloadName}"`);
-    }
-
-    object.stream.pipe(res);
-    return true;
-  };
-
-  return { ensureReady, exists, put, getObject, delete: deleteObject, deleteByPrefix, findFirstKey, streamToResponse };
+  return { ensureReady, exists, put, getObject, delete: deleteObject, deleteByPrefix, findFirstKey };
 };
 
 export type ObjectStorage = ReturnType<typeof createObjectStorage>;

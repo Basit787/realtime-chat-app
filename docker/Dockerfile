@@ -1,7 +1,7 @@
 # One image definition for every app in apps/. Pick the app with the APP build arg (its package name)
 # and the stage with `target`: `dev` (watch mode) or `prod` (built output). Build context: repo root.
 #
-#   docker build -f docker/Dockerfile --build-arg APP=@chat/server --target prod .
+#   docker build -f docker/Dockerfile --build-arg APP=@chat/chat-app-backend --target prod .
 #
 # Each app defines how it runs through its own package.json scripts: `dev`, `build` and `start`.
 ARG NODE_IMAGE=node:20-alpine
@@ -21,7 +21,6 @@ RUN turbo prune "${APP}" --docker
 FROM base AS deps
 WORKDIR /repo
 COPY --from=pruner /repo/out/json/ .
-COPY --from=pruner /repo/.npmrc ./
 RUN pnpm install --frozen-lockfile
 COPY --from=pruner /repo/out/full/ .
 

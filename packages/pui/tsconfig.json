@@ -1,0 +1,17 @@
+{
+  "extends": "tsconfig/react-app.json",
+  "compilerOptions": {
+    "paths": {
+      "pui": ["./src/index.ts"],
+      "pui/ui": ["./src/ui"],
+      "pui/ui/*": ["./src/ui/*"],
+      "pui/lib": ["./src/lib"],
+      "pui/lib/*": ["./src/lib/*"],
+      "pui/hooks": ["./src/hooks"],
+      "pui/hooks/*": ["./src/hooks/*"],
+      "pui/components": ["./src/components"],
+      "pui/components/*": ["./src/components/*"]
+    }
+  },
+  "include": ["src"]
+}

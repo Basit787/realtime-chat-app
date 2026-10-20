@@ -1,0 +1,45 @@
+# Link shortener (prod, Next.js) plus its PostgreSQL. Started from the repo root through ../../docker/docker-compose.prod.yml;
+# variables come from ./.env (see .env.example).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-link_shortener}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-link_shortener}"]
+      interval: 10s
+      retries: 5
+
+  link-shortener:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: prod
+      args:
+        APP: "@chat/link-shortener"
+    restart: unless-stopped
+    ports:
+      - "5178:5178"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-link_shortener}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3005/.well-known/jwks.json}
+      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3005}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:-chatwave}
+      AUTH_PROXY_TARGET: http://auth:3005
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+
+volumes:
+  postgres_data:
