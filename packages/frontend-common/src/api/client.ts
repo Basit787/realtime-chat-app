@@ -9,13 +9,22 @@ export type ApiClientOptions = {
   // Called on a 401, e.g. to renew the token or sign out
   onUnauthorized?: () => void;
   timeoutMs?: number;
+  // Send cookies on cross-origin requests too (the auth service's session cookie)
+  withCredentials?: boolean;
 };
 
 // Axios wrapper that never throws: every call resolves to { ok, data | message, status }
-export const createApiClient = ({ baseURL, getAccessToken, onUnauthorized, timeoutMs = 30_000 }: ApiClientOptions) => {
+export const createApiClient = ({
+  baseURL,
+  getAccessToken,
+  onUnauthorized,
+  timeoutMs = 30_000,
+  withCredentials = false,
+}: ApiClientOptions) => {
   const client: AxiosInstance = axios.create({
     baseURL,
     timeout: timeoutMs,
+    withCredentials,
     headers: {
       "Content-Type": "application/json",
     },

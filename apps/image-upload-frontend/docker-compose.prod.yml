@@ -1,0 +1,20 @@
+# Image upload frontend (prod). Started from the repo root via `make prod` through ../../docker/docker-compose.prod.yml (it needs its backend and auth);
+# variables come from ./.env (see .env.example).
+
+services:
+  image-upload-frontend:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: prod
+      args:
+        APP: "@chat/image-upload-frontend"
+    restart: unless-stopped
+    ports:
+      - "3005:80"
+    environment:
+      API_PROXY_TARGET: http://image-upload-backend:3006
+      AUTH_PROXY_TARGET: http://auth:3001
+    depends_on:
+      - image-upload-backend
+      - auth

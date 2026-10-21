@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { AppDialog, Button } from "pui";
+import { AppDialog, Button } from "my-ui";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { buildConversations, useChatStore } from "@/features/chat/store/chat-store";
 import { useAuthStore } from "@/lib/auth-store";

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, ChevronRight, FileText, Link2, MessageSquare, Phone, Play, Video, X } from "lucide-react";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { GroupAvatar } from "@/components/avatar/group-avatar";
-import { AppDialog } from "pui";
+import { AppDialog } from "my-ui";
 import { FilePreviewModal } from "@/components/chat/FileAttachment";
 import { getFileCategory, formatFileSize } from "frontend-common";
 import { effectivePresenceStatus, presenceStatusLabel } from "@/lib/presence";

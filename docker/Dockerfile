@@ -10,26 +10,29 @@ FROM ${NODE_IMAGE} AS base
 RUN corepack enable pnpm
 ENV TURBO_TELEMETRY_DISABLED=1
 
-# Workspace pruned to $APP and the internal packages it depends on, so installs only change when they do
-FROM base AS pruner
-ARG APP
+# Every package.json plus the lockfile: the install below reruns only when dependencies change
+FROM base AS manifests
 WORKDIR /repo
-RUN npm install -g turbo@2.11.8
 COPY . .
-RUN turbo prune "${APP}" --docker
+RUN mkdir /out \
+  && find . -name package.json -not -path "*/node_modules/*" | tar -cf - -T - | tar -xf - -C /out \
+  && cp pnpm-lock.yaml pnpm-workspace.yaml /out/
 
+# One install for the whole workspace, shared by every app's image (APP is only set after it);
+# the cache mount keeps downloaded packages between builds
 FROM base AS deps
 WORKDIR /repo
-COPY --from=pruner /repo/out/json/ .
-RUN pnpm install --frozen-lockfile
-COPY --from=pruner /repo/out/full/ .
+COPY --from=manifests /out/ .
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --store-dir /pnpm/store
+COPY . .
+# Shared packages built once here; containers then start from turbo's cache instead of each rebuilding them
+RUN pnpm turbo run build --filter="./packages/*"
 
-# Dev: builds the internal packages, then runs their watchers alongside the app's dev server.
-# Loose env mode passes the container's environment (DB URLs, secrets, DEV_HTTPS…) through to the tasks.
+# Dev: runs only the app's own dev server; the `packages` service (docker/packages.dev.yml) watches the shared packages
 FROM deps AS dev
 ARG APP
 ENV APP=${APP}
-CMD pnpm turbo run dev --filter="${APP}..." --env-mode=loose
+CMD pnpm --filter "${APP}" dev
 
 FROM deps AS build
 ARG APP

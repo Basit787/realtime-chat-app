@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   experimental: {
     agentFeedback: true,
   },
+  // Dev only: Next blocks its dev scripts (HMR, chunks) on any host but localhost, so opening it via a LAN IP never hydrated
+  allowedDevOrigins: ["127.0.0.1", "10.*.*.*", "172.*.*.*", "192.168.*.*", "*.local"],
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

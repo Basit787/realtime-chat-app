@@ -1,0 +1,31 @@
+# Dev only: one container runs the shared packages' tsup watchers and shares their dist/ with every app
+# (each app used to run its own copy of these watchers, which ran Docker out of memory)
+
+services:
+  packages:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: dev
+      args:
+        APP: "@chat/home"
+    restart: unless-stopped
+    command: pnpm turbo run dev --filter="./packages/*" --env-mode=loose
+    environment:
+      # Apps in containers never typecheck against my-ui/frontend-common; backend-common and ports keep .d.ts for Nest
+      TSUP_DTS: "false"
+    volumes:
+      - ../packages/my-ui/src:/repo/packages/my-ui/src
+      - ../packages/frontend-common/src:/repo/packages/frontend-common/src
+      - ../packages/ports/src:/repo/packages/ports/src
+      - ../packages/backend-common/src:/repo/packages/backend-common/src
+      - my_ui_dist:/repo/packages/my-ui/dist
+      - frontend_common_dist:/repo/packages/frontend-common/dist
+      - ports_dist:/repo/packages/ports/dist
+      - backend_common_dist:/repo/packages/backend-common/dist
+
+volumes:
+  my_ui_dist:
+  frontend_common_dist:
+  ports_dist:
+  backend_common_dist:

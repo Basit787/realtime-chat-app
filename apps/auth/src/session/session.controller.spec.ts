@@ -1,6 +1,7 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { AuthService } from "../auth/auth.service.js";
 import { SessionGuard } from "../auth/session.guard.js";
+import { RefreshTokenService } from "./refresh-token.service.js";
 import { SessionController } from "./session.controller.js";
 import { SessionService } from "./session.service.js";
 
@@ -15,6 +16,7 @@ describe("SessionController", () => {
         { provide: SessionService, useValue: {} },
         { provide: AuthService, useValue: {} },
         { provide: SessionGuard, useValue: {} },
+        { provide: RefreshTokenService, useValue: {} },
       ],
     }).compile();
 

@@ -18,13 +18,15 @@
     "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check"
   },
   "dependencies": {
-    "frontend-common": "workspace:*",
-    "ports": "workspace:*",
-    "pui": "workspace:*",
     "@tanstack/react-devtools": "*",
+    "@tanstack/react-form": "*",
+    "@tanstack/react-query": "*",
     "@tanstack/react-router": "*",
     "@tanstack/react-router-devtools": "*",
+    "frontend-common": "workspace:*",
     "lucide-react": "*",
+    "my-ui": "workspace:*",
+    "ports": "workspace:*",
     "react": "*",
     "react-dom": "*"
   },
@@ -32,13 +34,10 @@
     "eslint-config": "workspace:*",
     "prettier-config": "workspace:*",
     "tsconfig": "workspace:*",
-    "@tailwindcss/vite": "*",
-    "@tanstack/devtools-vite": "*",
-    "@tanstack/router-plugin": "*",
+    "vite-config": "workspace:*",
     "@types/node": "*",
     "@types/react": "*",
     "@types/react-dom": "*",
-    "@vitejs/plugin-react": "*",
     "tailwindcss": "*",
     "typescript": "*",
     "vite": "*"

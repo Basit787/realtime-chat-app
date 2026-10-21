@@ -2,8 +2,11 @@
 name: realtime-chat-app
 
 include:
+  - packages.dev.yml
   - ../apps/auth/docker-compose.dev.yml
   - ../apps/chat-app-backend/docker-compose.dev.yml
   - ../apps/chat-app-frontend/docker-compose.dev.yml
   - ../apps/home/docker-compose.dev.yml
+  - ../apps/image-upload-backend/docker-compose.dev.yml
+  - ../apps/image-upload-frontend/docker-compose.dev.yml
   - ../apps/link-shortener/docker-compose.dev.yml

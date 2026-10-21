@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
-import { fetchIceServers, type CallType, type GroupCallState } from "@/features/chat/api/api";
+import type { CallType, GroupCallState } from "@/features/chat/api/api";
 import { useChatStore } from "@/features/chat/store/chat-store";
 import { getUserMedia, switchCamera as switchLocalCamera } from "@/lib/media";
 import { toastError } from "@/lib/toast";
+import { subscribeSocket } from "@/lib/webrtc/subscribe-socket";
+import { useIceServers } from "@/lib/webrtc/use-ice-servers";
+import { useLatestRef } from "@/lib/webrtc/use-latest-ref";
 
 type UseGroupWebRTCOptions = {
   socket: Socket | null;
@@ -13,6 +16,7 @@ type UseGroupWebRTCOptions = {
 
 export type { GroupCallState };
 
+// Group call: a mesh where every participant keeps one peer connection per other participant
 export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTCOptions) => {
   const roomCall = useChatStore((s) => s.incomingGroupCall);
   const clearIncomingGroupCall = useChatStore((s) => s.clearIncomingGroupCall);
@@ -25,55 +29,13 @@ export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTC
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
 
-  const iceServersRef = useRef<RTCIceServer[]>([]);
-  const iceReadyRef = useRef<Promise<void> | null>(null);
+  const { iceServersRef, ensureIceServers } = useIceServers(enabled);
   const localStreamRef = useRef<MediaStream | null>(null);
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const activeRoomRef = useRef<string | null>(null);
-  const inGroupCallRef = useRef(false);
-  const participantsRef = useRef<string[]>([]);
-
-  useEffect(() => {
-    activeRoomRef.current = activeRoom;
-  }, [activeRoom]);
-
-  useEffect(() => {
-    inGroupCallRef.current = inGroupCall;
-  }, [inGroupCall]);
-
-  useEffect(() => {
-    participantsRef.current = participants;
-  }, [participants]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    if (!iceReadyRef.current) {
-      iceReadyRef.current = fetchIceServers()
-        .then((config) => {
-          iceServersRef.current = config.iceServers;
-        })
-        .catch((error) => {
-          console.error(error);
-          iceReadyRef.current = null;
-        });
-    }
-    void iceReadyRef.current;
-  }, [enabled]);
-
-  const ensureIceServers = useCallback(async () => {
-    if (iceServersRef.current.length > 0) return;
-    if (!iceReadyRef.current) {
-      iceReadyRef.current = fetchIceServers()
-        .then((config) => {
-          iceServersRef.current = config.iceServers;
-        })
-        .catch((error) => {
-          console.error(error);
-          iceReadyRef.current = null;
-        });
-    }
-    await iceReadyRef.current;
-  }, []);
+  // Latest values for the socket handlers below
+  const activeRoomRef = useLatestRef(activeRoom);
+  const inGroupCallRef = useLatestRef(inGroupCall);
+  const participantsRef = useLatestRef(participants);
 
   const cleanupPeer = useCallback((peer: string) => {
     pcsRef.current.get(peer)?.close();
@@ -146,7 +108,7 @@ export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTC
       pcsRef.current.set(peer, pc);
       return pc;
     },
-    [socket],
+    [iceServersRef, socket],
   );
 
   const connectToPeers = useCallback(
@@ -180,7 +142,7 @@ export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTC
       const peersToConnect = state.participants.filter((p) => p !== selfUsername && !existing.has(p));
       await connectToPeers(state.room, peersToConnect);
     },
-    [attachLocalMedia, clearIncomingGroupCall, connectToPeers, ensureIceServers, selfUsername],
+    [attachLocalMedia, clearIncomingGroupCall, connectToPeers, ensureIceServers, participantsRef, selfUsername],
   );
 
   const startGroupCall = useCallback(
@@ -201,7 +163,7 @@ export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTC
         cleanupAll();
       }
     },
-    [attachLocalMedia, cleanupAll, clearIncomingGroupCall, ensureIceServers, selfUsername, socket],
+    [attachLocalMedia, cleanupAll, clearIncomingGroupCall, ensureIceServers, inGroupCallRef, selfUsername, socket],
   );
 
   const joinGroupCall = useCallback(
@@ -210,7 +172,7 @@ export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTC
       clearIncomingGroupCall(callRoom);
       socket.emit("group-call:join", { room: callRoom });
     },
-    [clearIncomingGroupCall, socket],
+    [clearIncomingGroupCall, inGroupCallRef, socket],
   );
 
   const leaveGroupCall = useCallback(() => {
@@ -218,7 +180,7 @@ export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTC
       socket.emit("group-call:leave", { room: activeRoomRef.current });
     }
     cleanupAll();
-  }, [cleanupAll, socket]);
+  }, [activeRoomRef, cleanupAll, socket]);
 
   const dismissIncoming = useCallback(() => {
     if (roomCall) dismissIncomingGroupCall(roomCall.room);
@@ -287,20 +249,25 @@ export const useGroupWebRTC = ({ socket, selfUsername, enabled }: UseGroupWebRTC
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     };
 
-    socket.on("group-call:state", onState);
-    socket.on("group-call:ended", onEnded);
-    socket.on("group-call:offer", onOffer);
-    socket.on("group-call:answer", onAnswer);
-    socket.on("group-call:ice-candidate", onIce);
-
-    return () => {
-      socket.off("group-call:state", onState);
-      socket.off("group-call:ended", onEnded);
-      socket.off("group-call:offer", onOffer);
-      socket.off("group-call:answer", onAnswer);
-      socket.off("group-call:ice-candidate", onIce);
-    };
-  }, [cleanupAll, cleanupPeer, connectToPeers, createPeerConnection, enterCall, selfUsername, socket]);
+    return subscribeSocket(socket, {
+      "group-call:state": onState,
+      "group-call:ended": onEnded,
+      "group-call:offer": onOffer,
+      "group-call:answer": onAnswer,
+      "group-call:ice-candidate": onIce,
+    });
+  }, [
+    activeRoomRef,
+    cleanupAll,
+    cleanupPeer,
+    connectToPeers,
+    createPeerConnection,
+    enterCall,
+    inGroupCallRef,
+    participantsRef,
+    selfUsername,
+    socket,
+  ]);
 
   const switchCamera = useCallback(
     () => switchLocalCamera(localStreamRef, setLocalStream, pcsRef.current.values()),

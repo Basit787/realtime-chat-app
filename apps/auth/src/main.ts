@@ -36,6 +36,8 @@ async function bootstrap() {
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: "cross-origin" },
+      // HSTS only in production: received over dev HTTPS it forces https on every localhost port for a year
+      strictTransportSecurity: process.env.NODE_ENV === "production",
       // Swagger UI needs inline scripts/styles
       contentSecurityPolicy: {
         directives: {

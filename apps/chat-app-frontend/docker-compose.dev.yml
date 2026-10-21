@@ -10,24 +10,28 @@ services:
       args:
         APP: "@chat/chat-app-frontend"
     restart: unless-stopped
+    # Shared packages\' dist/ from the packages service (docker/packages.dev.yml)
+    volumes_from:
+      - packages:ro
+    # `make watch` rebuilds this image when dependencies or the Dockerfile change
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../pnpm-lock.yaml
+        - action: rebuild
+          path: ../../docker/Dockerfile
     ports:
-      - "5176:5176"
+      - "3003:3003"
     environment:
-      API_PROXY_TARGET: http://chat-app-backend:3004
-      AUTH_PROXY_TARGET: http://auth:3005
+      API_PROXY_TARGET: http://chat-app-backend:3002
+      AUTH_PROXY_TARGET: http://auth:3001
       CHOKIDAR_USEPOLLING: "true"
-      # Serve https://<host>:5176 with a self-signed cert so phones on the LAN can use camera/mic
-      DEV_HTTPS: ${DEV_HTTPS:-true}
     volumes:
       - ./src:/repo/apps/chat-app-frontend/src
       - ./public:/repo/apps/chat-app-frontend/public
       - ./index.html:/repo/apps/chat-app-frontend/index.html
       - ./vite.config.ts:/repo/apps/chat-app-frontend/vite.config.ts
       - ./tsconfig.json:/repo/apps/chat-app-frontend/tsconfig.json
-      # Shared packages: ui ships source, frontend-common's tsup watcher rebuilds dist/
-      - ../../packages/pui/src:/repo/packages/pui/src
-      - ../../packages/frontend-common/src:/repo/packages/frontend-common/src
-      - ../../packages/ports/src:/repo/packages/ports/src
     depends_on:
       - chat-app-backend
       - auth

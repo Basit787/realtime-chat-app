@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Copy, Download, Forward, Reply, SquareCheck, Trash2 } from "lucide-react";
-import { Button } from "pui";
+import { Button } from "my-ui";
 import { cn } from "@/lib/utils";
 
 export type MessageAction = "reply" | "copy" | "forward" | "download" | "select" | "delete-me" | "delete-all";

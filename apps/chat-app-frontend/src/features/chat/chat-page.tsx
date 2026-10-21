@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { AppHeader } from "frontend-common";
 import { ChatWindow } from "@/components/layout/ChatWindow";
 import { ConversationSidebar } from "@/components/layout/ConversationSidebar";
-import { Button, AppDialog } from "pui";
+import { Button, AppDialog } from "my-ui";
 import { authClient } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
 import { toastSuccess } from "@/lib/toast";
@@ -34,9 +35,12 @@ export const ChatPage = () => {
   };
 
   return (
-    <div className="flex h-dvh min-h-0 overflow-hidden bg-background pt-(--call-bar-h)">
-      <ConversationSidebar onLogout={() => setLogoutOpen(true)} />
-      <ChatWindow />
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background pt-(--call-bar-h)">
+      <AppHeader app="Chat" className="max-md:hidden" />
+      <div className="flex min-h-0 flex-1">
+        <ConversationSidebar onLogout={() => setLogoutOpen(true)} />
+        <ChatWindow />
+      </div>
 
       <AppDialog open={logoutOpen} onClose={() => setLogoutOpen(false)} title="Log out?" className="sm:max-w-sm">
         <div className="p-4">

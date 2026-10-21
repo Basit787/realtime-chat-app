@@ -1,0 +1,53 @@
+# Image upload backend (prod). Owns redis (BullMQ); needs postgres (apps/link-shortener), minio (apps/chat-app-backend) and auth;
+# started from the repo root via `make prod` through ../../docker/docker-compose.prod.yml; variables come from ./.env (see .env.example).
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+  image-upload-backend:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: prod
+      args:
+        APP: "@chat/image-upload-backend"
+    restart: unless-stopped
+    ports:
+      - "3006:3006"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/image_upload
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3001/.well-known/jwks.json}
+      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3001}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:-chatwave}
+      MAX_FILE_SIZE_MB: "10"
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-image-uploads}
+      MINIO_REGION: us-east-1
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3005}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth:
+        condition: service_started
+
+volumes:
+  redis_data:

@@ -1,5 +1,5 @@
 import { ArrowLeft, Phone } from "lucide-react";
-import { Button } from "pui";
+import { Button } from "my-ui";
 import { CallHistoryItem } from "@/components/call/CallHistoryItem";
 import { useAuthStore } from "@/lib/auth-store";
 import { useChatStore } from "@/features/chat/store/chat-store";

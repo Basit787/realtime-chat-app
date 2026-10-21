@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "pui";
+import { Button } from "my-ui";
 import { EMOJI_CATEGORIES, QUICK_EMOJIS } from "@/lib/emojis";
 import { addRecentEmoji, getRecentEmojis } from "@/lib/recent-emojis";
 import { cn } from "@/lib/utils";

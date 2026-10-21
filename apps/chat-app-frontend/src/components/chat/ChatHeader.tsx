@@ -1,5 +1,5 @@
 import { ArrowLeft, Phone, SquareCheck, Video } from "lucide-react";
-import { Button } from "pui";
+import { Button } from "my-ui";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { GroupAvatar } from "@/components/avatar/group-avatar";
 import { conversationToRoom } from "@/lib/rooms";

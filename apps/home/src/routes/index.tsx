@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { LayoutGrid } from "lucide-react";
 import { AuthGate } from "frontend-common";
 import { HomePage } from "@/components/home-page";
-import { ModeToggle } from "pui";
+import { ModeToggle } from "my-ui";
 
 export const Route = createFileRoute("/")({ component: HomeRoute });
 

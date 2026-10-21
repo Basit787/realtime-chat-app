@@ -1,21 +1,8 @@
 import { useEffect, useRef } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
 import { Camera, Crown, Loader2, Trash2, Users } from "lucide-react";
-import {
-  Button,
-  AppDialog,
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Input,
-  Textarea,
-} from "pui";
+import { AppDialog, Button, Input, useAppForm } from "my-ui";
 import { GroupAvatar } from "@/components/avatar/group-avatar";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { useGroupQuery, useRemoveGroupPhoto, useUpdateGroup, useUploadGroupPhoto } from "@/features/chat/api/hooks";
@@ -30,10 +17,8 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 const updateGroupSchema = z.object({
   name: z.string().trim().min(1, "Group name is required").max(64, "Group name must be at most 64 characters"),
-  description: z.string().max(500, "Description must be at most 500 characters").optional().default(""),
+  description: z.string().max(500, "Description must be at most 500 characters"),
 });
-
-type UpdateGroupValues = z.infer<typeof updateGroupSchema>;
 
 export const GroupInfoDialog = () => {
   const { groupInfoOpen, activeGroup, actions } = useChatRoom();
@@ -49,27 +34,25 @@ export const GroupInfoDialog = () => {
   const details = groupQuery.data ?? group;
   const groupId = details?.id ?? "";
 
-  const form = useForm<UpdateGroupValues>({
-    resolver: zodResolver(updateGroupSchema),
-    mode: "onTouched",
-    defaultValues: { name: "", description: "" },
-  });
-
   const saveDetails = useUpdateGroup(groupId);
   const uploadPhoto = useUploadGroupPhoto(groupId);
   const deletePhoto = useRemoveGroupPhoto(groupId);
 
   const isCreator = details?.createdBy === username;
 
+  const form = useAppForm({
+    defaultValues: { name: "", description: "" },
+    validators: { onChange: updateGroupSchema },
+    onSubmit: ({ value }) => {
+      if (!groupId) return;
+      saveDetails.mutate({ name: value.name.trim(), description: value.description });
+    },
+  });
+
   useEffect(() => {
     if (!details) return;
     form.reset({ name: details.name, description: details.description ?? "" });
   }, [details, form]);
-
-  const onSubmit = (values: UpdateGroupValues) => {
-    if (!groupId) return;
-    saveDetails.mutate({ name: values.name, description: values.description ?? "" });
-  };
 
   const handlePhoto = (file: File | undefined) => {
     if (!file || !isCreator || !groupId) return;
@@ -122,49 +105,27 @@ export const GroupInfoDialog = () => {
           </div>
 
           {isCreator ? (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 w-full space-y-3 text-left" noValidate>
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group name</FormLabel>
-                      <FormControl>
-                        <Input
-                          maxLength={64}
-                          className={cn("rounded-xl", form.formState.errors.name && "border-destructive")}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
+            <form.AppForm>
+              <form.Form className="mt-4 w-full space-y-3 text-left">
+                <form.AppField name="name">
+                  {(field) => <field.TextField label="Group name" maxLength={64} className="[&_input]:rounded-xl" />}
+                </form.AppField>
+                <form.AppField name="description">
+                  {(field) => (
+                    <field.TextareaField
+                      label="Description"
+                      maxLength={500}
+                      rows={3}
+                      placeholder="What is this group about?"
+                      className="[&_textarea]:resize-none [&_textarea]:rounded-xl [&_textarea]:bg-input"
+                    />
                   )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          maxLength={500}
-                          rows={3}
-                          placeholder="What is this group about?"
-                          className="resize-none rounded-xl bg-input"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" size="sm" className="rounded-xl" disabled={saveDetails.isPending || !groupId}>
+                </form.AppField>
+                <form.SubmitButton size="sm" className="rounded-xl" loading={saveDetails.isPending} disabled={!groupId}>
                   {saveDetails.isPending ? "Saving…" : "Save details"}
-                </Button>
-              </form>
-            </Form>
+                </form.SubmitButton>
+              </form.Form>
+            </form.AppForm>
           ) : (
             <>
               <h3 className="mt-4 text-lg font-semibold">{details.name}</h3>

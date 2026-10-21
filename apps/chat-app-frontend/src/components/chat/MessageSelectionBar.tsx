@@ -1,5 +1,5 @@
 import { Copy, Forward, Trash2, X } from "lucide-react";
-import { Button } from "pui";
+import { Button } from "my-ui";
 import { cn } from "@/lib/utils";
 
 export type BulkMessageAction = "copy" | "forward" | "delete-me" | "delete-all";

@@ -11,8 +11,8 @@ services:
         APP: "@chat/home"
     restart: unless-stopped
     ports:
-      - "5177:80"
+      - "3000:80"
     environment:
-      AUTH_PROXY_TARGET: http://auth:3005
+      AUTH_PROXY_TARGET: http://auth:3001
     depends_on:
       - auth

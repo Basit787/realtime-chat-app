@@ -74,16 +74,26 @@ services:
       args:
         APP: "@chat/chat-app-backend"
     restart: unless-stopped
+    # Shared packages\' dist/ from the packages service (docker/packages.dev.yml)
+    volumes_from:
+      - packages:ro
+    # `make watch` rebuilds this image when dependencies or the Dockerfile change
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../pnpm-lock.yaml
+        - action: rebuild
+          path: ../../docker/Dockerfile
     ports:
-      - "3004:3004"
+      - "3002:3002"
     environment:
       NODE_ENV: development
       # File events don't reach containers reliably on macOS; poll so `nest start --watch` reloads on edits
       TSC_WATCHFILE: DynamicPriorityPolling
       TSC_WATCHDIRECTORY: DynamicPriorityPolling
       MONGODB_URI: mongodb://mongo:27017/realtime_chat
-      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3005/.well-known/jwks.json}
-      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3005}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3001/.well-known/jwks.json}
+      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3001}
       AUTH_AUDIENCE: ${AUTH_AUDIENCE:-chatwave}
       MAX_FILE_SIZE_MB: "25"
       MINIO_ENDPOINT: http://minio:9000
@@ -95,7 +105,7 @@ services:
       TURN_PORT: "3478"
       TURN_USER: ${TURN_USER:-chat}
       TURN_PASSWORD: ${TURN_PASSWORD:-chatpass}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5176,http://localhost:80}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3003,http://localhost:80}
       ALLOW_LAN_ORIGINS: ${ALLOW_LAN_ORIGINS:-true}
     volumes:
       - ./src:/repo/apps/chat-app-backend/src
@@ -105,8 +115,6 @@ services:
       - ./tsconfig.json:/repo/apps/chat-app-backend/tsconfig.json
       - ./tsconfig.build.json:/repo/apps/chat-app-backend/tsconfig.build.json
       - ./eslint.config.js:/repo/apps/chat-app-backend/eslint.config.js
-      - ../../packages/backend-common/src:/repo/packages/backend-common/src
-      - ../../packages/ports/src:/repo/packages/ports/src
     depends_on:
       mongo:
         condition: service_healthy

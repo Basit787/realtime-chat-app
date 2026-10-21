@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "pui";
+import { Avatar, AvatarFallback, AvatarImage } from "my-ui";
 import { cn } from "@/lib/utils";
 import { groupAvatarUrl } from "@/lib/avatar-url";
 import { getAvatarColor, getInitials } from "frontend-common";

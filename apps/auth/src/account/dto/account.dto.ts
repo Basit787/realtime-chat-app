@@ -7,7 +7,7 @@ export class UserIdParamDto {
 }
 
 export class ImageResponseDto {
-  @ApiProperty({ example: "http://localhost:3005/api/avatars/6650f1c2a1b2c3d4e5f60708?v=1729071234567" })
+  @ApiProperty({ example: "http://localhost:3001/api/avatars/6650f1c2a1b2c3d4e5f60708?v=1729071234567" })
   image!: string;
 }
 

@@ -12,7 +12,7 @@ describe("AuthService", () => {
         AuthService,
         {
           provide: appConfig.KEY,
-          useValue: { auth: { jwksUrl: "http://localhost:3005/.well-known/jwks.json", issuer: "", audience: "" } },
+          useValue: { auth: { jwksUrl: "http://localhost:3001/.well-known/jwks.json", issuer: "", audience: "" } },
         },
       ],
     }).compile();

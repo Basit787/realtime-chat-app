@@ -10,10 +10,20 @@ services:
       args:
         APP: "@chat/home"
     restart: unless-stopped
+    # Shared packages\' dist/ from the packages service (docker/packages.dev.yml)
+    volumes_from:
+      - packages:ro
+    # `make watch` rebuilds this image when dependencies or the Dockerfile change
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../pnpm-lock.yaml
+        - action: rebuild
+          path: ../../docker/Dockerfile
     ports:
-      - "5177:5177"
+      - "3000:3000"
     environment:
-      AUTH_PROXY_TARGET: http://auth:3005
+      AUTH_PROXY_TARGET: http://auth:3001
       CHOKIDAR_USEPOLLING: "true"
     volumes:
       - ./src:/repo/apps/home/src
@@ -21,8 +31,5 @@ services:
       - ./index.html:/repo/apps/home/index.html
       - ./vite.config.ts:/repo/apps/home/vite.config.ts
       - ./tsconfig.json:/repo/apps/home/tsconfig.json
-      - ../../packages/pui/src:/repo/packages/pui/src
-      - ../../packages/frontend-common/src:/repo/packages/frontend-common/src
-      - ../../packages/ports/src:/repo/packages/ports/src
     depends_on:
       - auth

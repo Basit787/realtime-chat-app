@@ -1,4 +1,4 @@
-import { ScrollArea } from "pui";
+import { ScrollArea } from "my-ui";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { GroupInfoDialog } from "@/components/chat/GroupInfoDialog";
 import { ContactInfoPanel } from "@/components/chat/ContactInfoPanel";

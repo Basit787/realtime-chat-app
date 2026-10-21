@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
-import { fetchIceServers, type CallType } from "@/features/chat/api/api";
+import type { CallType } from "@/features/chat/api/api";
 import { getUserMedia, switchCamera as switchLocalCamera } from "@/lib/media";
 import { toastError } from "@/lib/toast";
+import { attachRemoteTrack } from "@/lib/webrtc/attach-remote-track";
+import { subscribeSocket } from "@/lib/webrtc/subscribe-socket";
+import { useIceServers } from "@/lib/webrtc/use-ice-servers";
 
 type CallPeer = {
   username: string;
@@ -20,25 +23,7 @@ type UseWebRTCOptions = {
   enabled: boolean;
 };
 
-const attachRemoteTrack = (
-  event: RTCTrackEvent,
-  remoteStreamRef: { current: MediaStream | null },
-  setRemoteStream: (stream: MediaStream | null) => void,
-) => {
-  let stream = remoteStreamRef.current;
-  if (!stream) {
-    stream = new MediaStream();
-    remoteStreamRef.current = stream;
-  }
-
-  const track = event.track;
-  if (track && !stream.getTracks().some((t) => t.id === track.id)) {
-    stream.addTrack(track);
-  }
-
-  setRemoteStream(new MediaStream(stream.getTracks()));
-};
-
+// One-to-one call: invite → offer/answer → ICE, with the callee's answer bound to this device
 export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) => {
   const [callPeer, setCallPeer] = useState<CallPeer | null>(null);
   const [incomingCall, setIncomingCall] = useState<CallPeer | null>(null);
@@ -49,31 +34,10 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const iceServersRef = useRef<RTCIceServer[]>([]);
-  const iceReadyRef = useRef<Promise<void> | null>(null);
+  const { iceServersRef, ensureIceServers } = useIceServers(enabled);
   const pendingOfferRef = useRef<{ from: string; sdp: RTCSessionDescriptionInit } | null>(null);
   // The caller trickles ICE candidates right after its offer, long before the callee answers
   const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
-
-  const ensureIceServers = useCallback(async () => {
-    if (iceServersRef.current.length > 0) return;
-    if (!iceReadyRef.current) {
-      iceReadyRef.current = fetchIceServers()
-        .then((config) => {
-          iceServersRef.current = config.iceServers;
-        })
-        .catch((error) => {
-          console.error(error);
-          iceReadyRef.current = null;
-        });
-    }
-    await iceReadyRef.current;
-  }, []);
-
-  useEffect(() => {
-    if (!enabled) return;
-    void ensureIceServers();
-  }, [enabled, ensureIceServers]);
 
   const cleanupCall = useCallback(() => {
     pcRef.current?.close();
@@ -110,7 +74,7 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
       pcRef.current = pc;
       return pc;
     },
-    [socket],
+    [iceServersRef, socket],
   );
 
   const attachLocalMedia = useCallback(async (callType: CallType) => {
@@ -231,26 +195,15 @@ export const useWebRTC = ({ socket, selfUsername, enabled }: UseWebRTCOptions) =
       else pendingIceRef.current.push(candidate);
     };
 
-    const onEnd = () => cleanupCall();
-    const onReject = () => cleanupCall();
-
-    socket.on("call:incoming", onIncoming);
-    socket.on("call:offer", onOffer);
-    socket.on("call:answer", onAnswer);
-    socket.on("call:ice-candidate", onIce);
-    socket.on("call:end", onEnd);
-    socket.on("call:reject", onReject);
-    socket.on("call:ringing", onRinging);
-
-    return () => {
-      socket.off("call:incoming", onIncoming);
-      socket.off("call:offer", onOffer);
-      socket.off("call:answer", onAnswer);
-      socket.off("call:ice-candidate", onIce);
-      socket.off("call:end", onEnd);
-      socket.off("call:reject", onReject);
-      socket.off("call:ringing", onRinging);
-    };
+    return subscribeSocket(socket, {
+      "call:incoming": onIncoming,
+      "call:offer": onOffer,
+      "call:answer": onAnswer,
+      "call:ice-candidate": onIce,
+      "call:end": () => cleanupCall(),
+      "call:reject": () => cleanupCall(),
+      "call:ringing": onRinging,
+    });
   }, [applyRemoteDescription, cleanupCall, inCall, socket]);
 
   // Give up on unanswered outgoing calls, like a phone would

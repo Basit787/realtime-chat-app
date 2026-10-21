@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "*",
+    "bullmq": "*",
     "multer": "*"
   },
   "devDependencies": {

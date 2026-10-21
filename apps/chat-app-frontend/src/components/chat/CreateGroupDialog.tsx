@@ -1,19 +1,6 @@
 import { useEffect, useMemo } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  Button,
-  AppDialog,
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Input,
-  Textarea,
-} from "pui";
+import { AppDialog, Button, fieldError, Label, useAppForm } from "my-ui";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { useCreateGroup } from "@/features/chat/api/hooks";
 import { useChatStore } from "@/features/chat/store/chat-store";
@@ -22,11 +9,9 @@ import { cn } from "@/lib/utils";
 
 const createGroupSchema = z.object({
   name: z.string().trim().min(1, "Group name is required").max(64, "Group name must be at most 64 characters"),
-  description: z.string().max(500, "Description must be at most 500 characters").optional().default(""),
+  description: z.string().max(500, "Description must be at most 500 characters"),
   members: z.array(z.string()).min(1, "Select at least one member"),
 });
-
-type CreateGroupValues = z.infer<typeof createGroupSchema>;
 
 type CreateGroupDialogProps = {
   open: boolean;
@@ -39,10 +24,20 @@ export const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => 
   const knownContacts = useChatStore((s) => s.knownContacts);
   const createGroup = useCreateGroup();
 
-  const form = useForm<CreateGroupValues>({
-    resolver: zodResolver(createGroupSchema),
-    mode: "onTouched",
-    defaultValues: { name: "", description: "", members: [] },
+  const form = useAppForm({
+    defaultValues: { name: "", description: "", members: [] as string[] },
+    validators: { onChange: createGroupSchema },
+    onSubmit: ({ value, formApi }) => {
+      createGroup.mutate(
+        { name: value.name.trim(), members: value.members, description: value.description },
+        {
+          onSuccess: () => {
+            formApi.reset();
+            onClose();
+          },
+        },
+      );
+    },
   });
 
   const candidates = useMemo(() => {
@@ -51,8 +46,7 @@ export const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => 
   }, [knownContacts, onlineUsers, username]);
 
   useEffect(() => {
-    if (!open) return;
-    form.reset({ name: "", description: "", members: [] });
+    if (open) form.reset();
   }, [open, form]);
 
   const handleClose = () => {
@@ -61,119 +55,86 @@ export const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => 
     onClose();
   };
 
-  const onSubmit = (values: CreateGroupValues) => {
-    createGroup.mutate(
-      {
-        name: values.name,
-        members: values.members,
-        description: values.description ?? "",
-      },
-      {
-        onSuccess: () => {
-          form.reset();
-          onClose();
-        },
-      },
-    );
-  };
-
-  const selectedMembers = form.watch("members");
-
-  const toggleMember = (member: string) => {
-    const current = form.getValues("members");
-    const next = current.includes(member) ? current.filter((m) => m !== member) : [...current, member];
-    form.setValue("members", next, { shouldValidate: true, shouldTouch: true });
-  };
-
   return (
     <AppDialog open={open} onClose={handleClose} title="Create group" className="sm:max-w-sm">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4" noValidate>
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Group name</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="e.g. Project team"
-                    maxLength={64}
-                    className={cn("rounded-xl", form.formState.errors.name && "border-destructive")}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
+      <form.AppForm>
+        <form.Form className="space-y-4 p-4">
+          <form.AppField name="name">
+            {(field) => (
+              <field.TextField
+                label="Group name"
+                placeholder="e.g. Project team"
+                maxLength={64}
+                className="[&_input]:rounded-xl"
+              />
             )}
-          />
+          </form.AppField>
 
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description (optional)</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="What is this group about?"
-                    maxLength={500}
-                    rows={2}
-                    className="resize-none rounded-xl bg-input"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
+          <form.AppField name="description">
+            {(field) => (
+              <field.TextareaField
+                label="Description (optional)"
+                placeholder="What is this group about?"
+                maxLength={500}
+                rows={2}
+                className="[&_textarea]:resize-none [&_textarea]:rounded-xl [&_textarea]:bg-input"
+              />
             )}
-          />
+          </form.AppField>
 
-          <FormField
-            control={form.control}
-            name="members"
-            render={() => (
-              <FormItem>
-                <FormLabel>Add members</FormLabel>
-                <div className="max-h-48 overflow-y-auto rounded-xl border border-border">
-                  {candidates.length === 0 ? (
-                    <p className="px-3 py-4 text-sm text-muted-foreground">No contacts available</p>
-                  ) : (
-                    candidates.map((member) => {
-                      const isSelected = selectedMembers.includes(member);
-                      const online = onlineUsers.includes(member);
-                      return (
-                        <Button
-                          key={member}
-                          type="button"
-                          variant="ghost"
-                          onClick={() => toggleMember(member)}
-                          className={cn(
-                            "h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 font-normal",
-                            isSelected && "bg-accent/70 hover:bg-accent/70",
-                          )}
-                        >
-                          <UserAvatar name={member} showOnline online={online} className="h-9 w-9" />
-                          <div className="min-w-0">
-                            <span className="text-sm font-medium">{member}</span>
-                            <p className={cn("text-xs", online ? "text-online" : "text-muted-foreground")}>
-                              {online ? "Online" : "Offline"}
-                            </p>
-                          </div>
-                        </Button>
-                      );
-                    })
-                  )}
+          <form.Field name="members">
+            {(field) => {
+              const toggleMember = (member: string) => {
+                const current = field.state.value;
+                field.handleChange(
+                  current.includes(member) ? current.filter((m) => m !== member) : [...current, member],
+                );
+              };
+              const error = fieldError(field.state.meta);
+              return (
+                <div className="space-y-2">
+                  <Label>Add members</Label>
+                  <div className="max-h-48 overflow-y-auto rounded-xl border border-border">
+                    {candidates.length === 0 ? (
+                      <p className="px-3 py-4 text-sm text-muted-foreground">No contacts available</p>
+                    ) : (
+                      candidates.map((member) => {
+                        const isSelected = field.state.value.includes(member);
+                        const online = onlineUsers.includes(member);
+                        return (
+                          <Button
+                            key={member}
+                            type="button"
+                            variant="ghost"
+                            onClick={() => toggleMember(member)}
+                            className={cn(
+                              "h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 font-normal",
+                              isSelected && "bg-accent/70 hover:bg-accent/70",
+                            )}
+                          >
+                            <UserAvatar name={member} showOnline online={online} className="h-9 w-9" />
+                            <div className="min-w-0">
+                              <span className="text-sm font-medium">{member}</span>
+                              <p className={cn("text-xs", online ? "text-online" : "text-muted-foreground")}>
+                                {online ? "Online" : "Offline"}
+                              </p>
+                            </div>
+                          </Button>
+                        );
+                      })
+                    )}
+                  </div>
+                  {error && <p className="text-xs text-destructive">{error}</p>}
                 </div>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
+              );
+            }}
+          </form.Field>
 
-          <Button type="submit" className="w-full rounded-xl" disabled={createGroup.isPending}>
+          <form.SubmitButton className="w-full rounded-xl" loading={createGroup.isPending}>
             {createGroup.isPending ? "Creating…" : "Create group"}
-          </Button>
-        </form>
-      </Form>
+          </form.SubmitButton>
+        </form.Form>
+      </form.AppForm>
     </AppDialog>
   );
 };

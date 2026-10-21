@@ -26,28 +26,30 @@ services:
       args:
         APP: "@chat/link-shortener"
     restart: unless-stopped
+    # Shared packages\' dist/ from the packages service (docker/packages.dev.yml)
+    volumes_from:
+      - packages:ro
+    # `make watch` rebuilds this image when dependencies or the Dockerfile change
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../pnpm-lock.yaml
+        - action: rebuild
+          path: ../../docker/Dockerfile
     ports:
-      - "5178:5178"
+      - "3004:3004"
     environment:
       NODE_ENV: development
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-link_shortener}
-      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3005/.well-known/jwks.json}
-      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3005}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3001/.well-known/jwks.json}
+      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3001}
       AUTH_AUDIENCE: ${AUTH_AUDIENCE:-chatwave}
-      AUTH_PROXY_TARGET: http://auth:3005
+      AUTH_PROXY_TARGET: http://auth:3001
       WATCHPACK_POLLING: "true"
     volumes:
-      - ./app:/repo/apps/link-shortener/app
-      - ./components:/repo/apps/link-shortener/components
-      - ./lib:/repo/apps/link-shortener/lib
-      - ./drizzle:/repo/apps/link-shortener/drizzle
+      - ./src:/repo/apps/link-shortener/src
       - ./public:/repo/apps/link-shortener/public
-      - ./proxy.ts:/repo/apps/link-shortener/proxy.ts
-      - ./instrumentation.ts:/repo/apps/link-shortener/instrumentation.ts
       - ./next.config.ts:/repo/apps/link-shortener/next.config.ts
-      - ../../packages/pui/src:/repo/packages/pui/src
-      - ../../packages/frontend-common/src:/repo/packages/frontend-common/src
-      - ../../packages/ports/src:/repo/packages/ports/src
     depends_on:
       postgres:
         condition: service_healthy

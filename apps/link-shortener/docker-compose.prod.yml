@@ -27,14 +27,14 @@ services:
         APP: "@chat/link-shortener"
     restart: unless-stopped
     ports:
-      - "5178:5178"
+      - "3004:3004"
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-link_shortener}
-      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3005/.well-known/jwks.json}
-      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3005}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth:3001/.well-known/jwks.json}
+      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:3001}
       AUTH_AUDIENCE: ${AUTH_AUDIENCE:-chatwave}
-      AUTH_PROXY_TARGET: http://auth:3005
+      AUTH_PROXY_TARGET: http://auth:3001
     depends_on:
       postgres:
         condition: service_healthy

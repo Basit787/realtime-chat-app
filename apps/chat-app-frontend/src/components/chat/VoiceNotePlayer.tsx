@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Pause, Play } from "lucide-react";
-import { Button, Slider } from "pui";
+import { Button, Slider } from "my-ui";
 import { useFileBlob } from "@/lib/useFileBlob";
 import type { MessageFile } from "@/features/chat/api/api";
 import { cn } from "@/lib/utils";

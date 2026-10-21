@@ -17,7 +17,7 @@ export class AuthError extends Error {
 }
 
 export type AuthClientOptions = {
-  // Auth service API base, e.g. "http://192.168.1.20:3005/api"
+  // Auth service API base, e.g. "http://192.168.1.20:3001/api"
   baseUrl: string;
   // Native keeps the session token here (bearer); without it the auth service's cookie is the session (web)
   storage?: AuthStorage;
@@ -184,8 +184,9 @@ export const createAuthClient = ({ baseUrl, storage, headers: extraHeaders }: Au
     return authenticate("/auth/sign-up/email", payload);
   };
 
+  // Deletes the session and refresh token on the server and clears their httpOnly cookies
   const signOut = async () => {
-    await request("/auth/sign-out", { body: {} }).catch(() => undefined);
+    await request("/logout", { body: {} }).catch(() => undefined);
     await clear();
   };
 
@@ -211,6 +212,7 @@ export const createAuthClient = ({ baseUrl, storage, headers: extraHeaders }: Au
 
   const deleteAccount = async (password: string) => {
     await request("/auth/delete-user", { body: { password } });
+    await request("/logout", { body: {} }).catch(() => undefined);
     await clear();
   };
 
@@ -240,6 +242,7 @@ export const createAuthClient = ({ baseUrl, storage, headers: extraHeaders }: Au
         listeners.delete(listener);
       };
     },
+    baseUrl: base,
     avatarUrl: (image?: string | null) => resolveAuthAvatar(base, image),
     restore,
     refresh: () => refresh().catch(() => snapshot.accessToken),

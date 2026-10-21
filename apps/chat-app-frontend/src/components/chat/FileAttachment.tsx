@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Download, FileText, Loader2, Play } from "lucide-react";
-import { Button, AppDialog } from "pui";
+import { Button, AppDialog } from "my-ui";
 import { formatFileSize, getFileCategory, type FileCategory } from "frontend-common";
 import { attachmentTitle } from "@/lib/messages";
 import { downloadFileAsAttachment, useFileBlob } from "@/lib/useFileBlob";

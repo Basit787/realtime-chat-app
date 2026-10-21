@@ -1,7 +1,7 @@
 import { formatConversationTime } from "frontend-common";
 import { useUserProfileImage } from "@/lib/use-user-profile-image";
 import { cn } from "@/lib/utils";
-import { Button } from "pui";
+import { Button } from "my-ui";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import type { Conversation } from "@/features/chat/store/chat-store";
 

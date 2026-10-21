@@ -1,0 +1,40 @@
+{
+  "name": "@chat/image-upload-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "prisma generate && (prisma migrate deploy || echo 'Migrations skipped: is PostgreSQL running? (make infra)') && tsx watch src/index.ts",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "start": "prisma migrate deploy && node dist/index.js",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "backend-common": "workspace:*",
+    "ports": "workspace:*",
+    "@hono/node-server": "*",
+    "@prisma/adapter-pg": "*",
+    "@prisma/client": "*",
+    "bullmq": "*",
+    "hono": "*",
+    "jose": "*",
+    "zod": "*"
+  },
+  "devDependencies": {
+    "eslint-config": "workspace:*",
+    "prettier-config": "workspace:*",
+    "tsconfig": "workspace:*",
+    "@types/node": "*",
+    "prisma": "*",
+    "tsx": "*",
+    "typescript": "*"
+  },
+  "prettier": "prettier-config"
+}

@@ -1,42 +1,88 @@
-import { LayoutGrid, LogOut } from "lucide-react";
-import { useAuth } from "frontend-common";
-import { Button, ModeToggle } from "pui";
+import { useEffect, useState } from "react";
+import { LayoutGrid, List } from "lucide-react";
+import { AppHeader, MobileBottomNav, useAuth } from "frontend-common";
+import { cn, MyUiToggleGroup } from "my-ui";
 import { AppCard } from "@/components/app-card";
 import { APPS } from "@/lib/apps";
+import { warmApp } from "@/lib/warm-app";
+
+type Layout = "grid" | "list";
+
+const LAYOUT_KEY = "home:layout";
+
+const savedLayout = (): Layout => {
+  try {
+    return localStorage.getItem(LAYOUT_KEY) === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
+};
 
 export const HomePage = () => {
-  const { user, client } = useAuth();
+  const { user } = useAuth();
+  const [layout, setLayout] = useState<Layout>(savedLayout);
+
+  const changeLayout = (value: string) => {
+    if (value !== "grid" && value !== "list") return;
+    setLayout(value);
+    try {
+      localStorage.setItem(LAYOUT_KEY, value);
+    } catch {
+      // Private mode: the choice just isn't remembered
+    }
+  };
+
+  // Start every app's server warming as soon as home is shown
+  useEffect(() => APPS.forEach((app) => warmApp(app.url)), []);
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Home</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
-            <ModeToggle />
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => void client.signOut()}>
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader className="max-md:hidden" />
 
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <h1 className="text-2xl font-semibold">Welcome back{user?.name ? `, ${user.name}` : ""}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pick an app to open. You stay signed in across all of them.
-        </p>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <main className="mx-auto max-w-5xl px-4 pt-8 pb-24 md:px-6 md:py-10">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Welcome back{user?.name ? `, ${user.name}` : ""}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Pick an app to open. You stay signed in across all of them.
+            </p>
+          </div>
+          <MyUiToggleGroup
+            type="single"
+            variant="outline"
+            className="max-md:hidden"
+            size="sm"
+            value={layout}
+            onValueChange={changeLayout}
+            items={[
+              { value: "grid", icon: <LayoutGrid />, ariaLabel: "Grid view" },
+              { value: "list", icon: <List />, ariaLabel: "List view" },
+            ]}
+          />
+        </div>
+        <div
+          className={cn(
+            "mt-6 grid gap-3 md:mt-8",
+            layout === "grid" ? "grid-cols-2 sm:gap-4 lg:grid-cols-3" : "grid-cols-1",
+          )}
+        >
           {APPS.map((app) => (
-            <AppCard key={app.id} app={app} />
+            <AppCard key={app.id} app={app} layout={layout} />
           ))}
         </div>
       </main>
+      <MobileBottomNav
+        isHome
+        className="fixed inset-x-0 bottom-0 z-20"
+        items={[
+          {
+            key: "layout",
+            label: layout === "grid" ? "List" : "Grid",
+            icon: layout === "grid" ? <List /> : <LayoutGrid />,
+            onSelect: () => changeLayout(layout === "grid" ? "list" : "grid"),
+          },
+        ]}
+      />
     </div>
   );
 };

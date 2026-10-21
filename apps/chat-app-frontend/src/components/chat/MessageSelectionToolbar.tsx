@@ -1,5 +1,5 @@
 import { Copy, Forward, Trash2, X } from "lucide-react";
-import { Button } from "pui";
+import { Button } from "my-ui";
 import { cn } from "@/lib/utils";
 import { messageKey } from "@/lib/messages";
 import type { ChatMessage } from "@/features/chat/api/api";

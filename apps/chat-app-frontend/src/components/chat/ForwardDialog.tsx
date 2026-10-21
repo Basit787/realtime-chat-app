@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { Button, AppDialog } from "pui";
+import { Button, AppDialog } from "my-ui";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { buildConversations } from "@/features/chat/store/chat-store";
 import { useChatStore } from "@/features/chat/store/chat-store";

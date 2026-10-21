@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerates docker/docker-compose.<env>.yml from apps/*/docker-compose.<env>.yml, then runs compose
+# Regenerates docker/docker-compose.<env>.yml from docker/packages.<env>.yml and apps/*/docker-compose.<env>.yml, then runs compose
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -12,6 +12,7 @@ out="docker/docker-compose.${env}.yml"
   echo "name: realtime-chat-app"
   echo
   echo "include:"
+  [ -e "docker/packages.${env}.yml" ] && echo "  - packages.${env}.yml"
   for file in apps/*/docker-compose."${env}".yml; do
     [ -e "$file" ] && echo "  - ../${file}"
   done

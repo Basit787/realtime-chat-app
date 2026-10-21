@@ -25,19 +25,23 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "pui": "workspace:*",
+    "my-ui": "workspace:*",
+    "ports": "workspace:*",
     "axios": "*",
     "date-fns": "*"
   },
   "peerDependencies": {
+    "@tanstack/react-query": "*",
     "lucide-react": "*",
     "react": "*",
     "react-dom": "*"
   },
   "devDependencies": {
+    "@tanstack/react-query": "*",
     "eslint-config": "workspace:*",
     "prettier-config": "workspace:*",
     "tsconfig": "workspace:*",
+    "@types/node": "*",
     "@types/react": "*",
     "@types/react-dom": "*",
     "lucide-react": "*",

@@ -2,8 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { InjectConnection } from "@nestjs/mongoose";
 import type { Connection } from "mongoose";
 
-// better-auth's collections, owned by this service
-const AUTH_COLLECTIONS = ["user", "session", "account", "verification"];
+// better-auth's collections plus the refresh tokens, owned by this service
+const AUTH_COLLECTIONS = ["user", "session", "account", "verification", "refreshtokens"];
 
 @Injectable()
 export class DbService {

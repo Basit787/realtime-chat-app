@@ -20,6 +20,14 @@ export const appConfig = registerAs("app", () => ({
   publicUrl: (process.env.AUTH_PUBLIC_URL || serviceUrl("auth", { hostname: LOCALHOST })).replace(/\/$/, ""),
   audience: process.env.AUTH_AUDIENCE || "chatwave",
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL || "15m",
+  // httpOnly cookie that renews access tokens; rotated on every use, stored hashed in `refreshtokens`
+  refreshToken: {
+    ttlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS) || 7,
+    cookieName: process.env.REFRESH_COOKIE_NAME || "chatwave_refresh",
+    // Web apps reach this service through their /auth-api proxy, so the cookie goes nowhere else
+    cookiePath: process.env.REFRESH_COOKIE_PATH || "/auth-api",
+    cookieSecure: process.env.COOKIE_SECURE === "true",
+  },
   corsOrigin: list(process.env.CORS_ORIGIN, localAppOrigins()),
   allowLanOrigins,
   mobileAppOrigin: process.env.MOBILE_APP_ORIGIN || "chatwave://",

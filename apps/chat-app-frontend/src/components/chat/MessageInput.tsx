@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Mic, Paperclip, Send, Smile, Square, Trash2, X } from "lucide-react";
-import { Input, Button } from "pui";
+import { Input, Button } from "my-ui";
 import { EmojiPicker } from "@/components/chat/EmojiPicker";
 import { useUploadFile } from "@/features/chat/api/hooks";
 import { useChatStore } from "@/features/chat/store/chat-store";

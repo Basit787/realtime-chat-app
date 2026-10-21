@@ -2,7 +2,9 @@ import { appConfig, type AppConfig } from "@app/common";
 import { Global, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { DbService } from "./db.service.js";
+import { RefreshToken, RefreshTokenSchema } from "./entities/refresh-token.entity.js";
 import { SigningKey, SigningKeySchema } from "./entities/signing-key.entity.js";
+import { RefreshTokenRepository } from "./repositories/refresh-token.repository.js";
 import { SigningKeyRepository } from "./repositories/signing-key.repository.js";
 import { UserRepository } from "./repositories/user.repository.js";
 
@@ -14,9 +16,12 @@ import { UserRepository } from "./repositories/user.repository.js";
       inject: [appConfig.KEY],
       useFactory: (config: AppConfig) => ({ uri: config.mongodbUri }),
     }),
-    MongooseModule.forFeature([{ name: SigningKey.name, schema: SigningKeySchema }]),
+    MongooseModule.forFeature([
+      { name: RefreshToken.name, schema: RefreshTokenSchema },
+      { name: SigningKey.name, schema: SigningKeySchema },
+    ]),
   ],
-  providers: [DbService, SigningKeyRepository, UserRepository],
-  exports: [DbService, SigningKeyRepository, UserRepository],
+  providers: [DbService, RefreshTokenRepository, SigningKeyRepository, UserRepository],
+  exports: [DbService, RefreshTokenRepository, SigningKeyRepository, UserRepository],
 })
 export class DbModule {}

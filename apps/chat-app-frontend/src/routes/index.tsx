@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AuthGate } from "frontend-common";
 import { ChatWaveLogo } from "@/components/brand/ChatWaveLogo";
 import { ChatPage } from "@/features/chat/chat-page";
-import { ModeToggle } from "pui";
+import { ModeToggle } from "my-ui";
 
 export const Route = createFileRoute("/")({ component: ChatRoute });
 
