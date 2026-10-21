@@ -6,3 +6,4 @@ dist/
 .turbo/
 .claude
 CLAUDE.md
+.DS_Store
