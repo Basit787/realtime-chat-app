@@ -1,0 +1,220 @@
+// MongoDB data model. Apply indexes with `pnpm db:push`; regenerate the client with `pnpm prisma generate`.
+// Collection names (@@map) match the ones Mongoose created, so existing data keeps working.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+// ---- Accounts (better-auth core + admin plugin fields) ----
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String?
+  banned        Boolean?
+  banReason     String?
+  banExpires    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
+}
+
+model Session {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  token          String   @unique
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String?
+  userId         String   @db.ObjectId
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  accountId             String
+  providerId            String
+  userId                String    @db.ObjectId
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// The rotating refresh token of one better-auth session; only SHA-256 hashes are stored.
+// The TTL index on expiresAt is created by PrismaService (Prisma cannot declare TTL indexes).
+model RefreshToken {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId    String    @unique
+  userId       String
+  tokenHash    String    @unique
+  // The token it replaced, still accepted for a few seconds so parallel refreshes (several tabs) don't collide
+  previousHash String?
+  rotatedAt    DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("refreshtokens")
+}
+
+// The key pair that signs access tokens; the public half verifies them
+model SigningKey {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  kid        String   @unique
+  alg        String
+  publicJwk  Json
+  privateJwk Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("signingkeys")
+}
+
+// ---- Chat ----
+
+enum MessageType {
+  text
+  file
+}
+
+type MessageFile {
+  id       String
+  name     String
+  mimeType String
+  size     Int
+}
+
+model Message {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  room        String
+  user        String
+  userId      String?
+  type        MessageType  @default(text)
+  text        String
+  file        MessageFile?
+  // Soft delete: the text and file are cleared, receipts are kept
+  deleted     Boolean      @default(false)
+  // Usernames whose client has received the message
+  deliveredTo String[]     @default([])
+  // Usernames who have seen the message
+  readBy      String[]     @default([])
+  at          DateTime     @default(now())
+
+  @@index([room, at])
+  @@index([userId])
+  @@map("messages")
+}
+
+// Metadata of a chat attachment; the bytes live in MinIO under `storedName`
+model SharedFile {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  room         String
+  user         String
+  userId       String
+  originalName String
+  mimeType     String
+  size         Int
+  storedName   String   @unique
+  at           DateTime @default(now())
+
+  @@index([room])
+  @@index([userId])
+  @@map("sharedfiles")
+}
+
+model ChatGroup {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String   @default("")
+  image       String   @default("")
+  members     String[]
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([members])
+  @@map("chatgroups")
+}
+
+enum CallType {
+  audio
+  video
+}
+
+enum CallStatus {
+  completed
+  missed
+  rejected
+  cancelled
+}
+
+model CallHistory {
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
+  caller          String
+  callee          String
+  callType        CallType
+  status          CallStatus
+  startedAt       DateTime
+  endedAt         DateTime
+  durationSeconds Int?
+
+  @@index([caller, startedAt(sort: Desc)])
+  @@index([callee, startedAt(sort: Desc)])
+  @@map("callhistories")
+}
+
+enum PresenceStatus {
+  online
+  away
+  busy
+  offline
+}
+
+// The status a user picked; being connected is tracked in memory
+model UserPresence {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  username  String         @unique
+  status    PresenceStatus @default(online)
+  updatedAt DateTime       @default(now())
+
+  @@map("userpresences")
+}

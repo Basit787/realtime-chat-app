@@ -2,8 +2,8 @@ node_modules/
 dist/
 .env
 *.log
+*.tsbuildinfo
 
-.turbo/
 .claude
 CLAUDE.md
 .DS_Store

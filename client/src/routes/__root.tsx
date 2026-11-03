@@ -1,0 +1,22 @@
+import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { TanStackDevtools } from "@tanstack/react-devtools";
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { AppProviders } from "@/providers/app-providers";
+import "../styles.css";
+
+export const Route = createRootRoute({ component: RootComponent });
+
+function RootComponent() {
+  return (
+    <AppProviders>
+      <Outlet />
+      {import.meta.env.DEV && (
+        <TanStackDevtools
+          // Clear of the compose box and the send button
+          config={{ position: "middle-right" }}
+          plugins={[{ name: "TanStack Router", render: <TanStackRouterDevtoolsPanel /> }]}
+        />
+      )}
+    </AppProviders>
+  );
+}

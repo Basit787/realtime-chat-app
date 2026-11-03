@@ -1,161 +1,107 @@
 # Real-Time Chat Application
 
-**Socket.io** + **Express** + **React** with **Mongoose/MongoDB**, real-time chat, **private DMs**, **audio/video calls** (WebRTC), and **file sharing** — all via Docker.
+**NestJS + Socket.IO** server and **React + Vite** client with **Prisma/MongoDB**: real-time chat, **private DMs**, **groups**, **audio/video calls** (WebRTC) and **file sharing**.
+
+```text
+client/   React + Vite + TanStack Router app (src/ui: design system, src/common: auth, API client, chat helpers)
+server/   NestJS API + Socket.IO (src: features, libs: auth, common, db, notifications, realtime, storage)
+  prisma/   schema.prisma (MongoDB data model) and seed.mjs
+docker-compose.yml   the whole stack (live reload)
+Makefile             every command below
+```
+
+The two apps are independent pnpm projects, each with its own `package.json`, lockfile and `Dockerfile` (stages `dev` and `prod`).
 
 ## Start (Docker)
 
 ```bash
-make
-```
-
-Or:
-
-```bash
-./docker/up.sh
+cp .env.example .env   # optional: every value has a default
+make                   # the whole stack with live reload (same as `make up`)
+docker compose exec server pnpm db:seed   # admin account + a welcome message in #general
 ```
 
 | Service | URL / Port |
 |---------|------------|
-| **UI** | http://localhost:5176 |
-| **API** (direct) | http://localhost:3004 |
-| **MongoDB** | localhost:27018 |
+| **Client** | http://localhost:3000 |
+| **API** (direct) | http://localhost:3001/api |
+| **API docs** (Swagger) | http://localhost:3001/api/docs |
+| **MongoDB** (replica set `rs0`) | localhost:27018 |
 | **MinIO API** | http://localhost:9000 |
-| **MinIO Console** | http://localhost:9001 (login: minioadmin / minioadmin) |
+| **MinIO Console** | http://localhost:9001 (minioadmin / minioadmin) |
 | **TURN/STUN** (coturn) | localhost:3478 |
 
-Copy `apps/server/.env.example` to `apps/server/.env` (and `apps/client/.env.example` to `apps/client/.env`) to customize secrets and TURN settings; compose reads each app's `.env` from its own folder.
+| Command | What it does |
+|---------|--------------|
+| `make` / `make up` | Build and start everything in the background; edits in `client/src`, `server/src`, `server/libs` reload live |
+| `make down` | Stop everything |
+| `make install` | `pnpm install` in `server/` and `client/` (also generates the Prisma client) |
+| `make clean` | Delete `node_modules` and build output in both apps |
 
-## Development (live reload)
-
-`make` / `./docker/up.sh` starts Docker with **hot reload** — edit `apps/client/src` or `apps/server/src` and changes apply without restarting containers.
-
-- **Client:** Vite dev server + HMR on port 5176
-- **Server:** `tsx watch` restarts on file changes
-
-## Monorepo
-
-pnpm workspaces + [Turborepo](https://turborepo.com):
-
-```text
-apps/client              React + Vite app (@chat/client)
-apps/server              Express + Socket.IO API (@chat/server)
-apps/mobile              Expo + NativeWind app (@chat/mobile)
-packages/ui              design system for both clients: src/web (@chat/ui), src/native (@chat/ui/native), src/styles (web.css → generated native.css)
-packages/frontend-common shared by web and mobile: chat types, endpoints, room naming, message/presence helpers, formatters
-packages/backend-common  shared Express helpers: errors, async handler, validation, S3/MinIO storage + uploads
-packages/eslint-config   shared ESLint presets (base / react / react-native / node)
-packages/prettier-config shared Prettier config
-packages/tsconfig        shared TypeScript presets
-docker/                  all Docker setup: the one Dockerfile (APP build arg, dev/prod targets), its .dockerignore, the stack compose files, compose.sh and up.sh
-```
-
-Each app owns its compose files and `.env` (`apps/<app>/docker-compose.{dev,prod}.yml`, `apps/<app>/.env.example`); the server's also start MongoDB, MinIO and coturn. `make` runs `docker/compose.sh`, which regenerates `docker/docker-compose.{dev,prod}.yml` to `include` every app's compose file, so a new app only needs its own.
-
-All dependency versions are declared once in the root `pnpm-workspace.yaml`: `"catalog:"` for shared ones, `"catalog:native"` for Expo / React Native ones.
-
-```bash
-npx -y pnpm@10.12.1 install                    # or `pnpm install` if pnpm is installed
-npx -y pnpm@10.12.1 turbo run build            # builds packages, then apps
-npx -y pnpm@10.12.1 turbo run typecheck lint
-```
-
-If you add npm dependencies, rebuild app images:
-
-```bash
-make rebuild
-```
-
-For a production-style build (static client, compiled server):
-
-```bash
-make prod
-```
-
-## Mobile app
-
-`apps/mobile` is an Expo development build (calls need native WebRTC, so Expo Go cannot run it).
-
-```bash
-cp apps/mobile/.env.example apps/mobile/.env   # set EXPO_PUBLIC_API_URL to your computer's LAN IP, e.g. http://192.168.1.20:3004
-pnpm --filter @chat/mobile exec expo run:ios   # or expo run:android — builds and installs the app once
-pnpm --filter @chat/mobile dev                 # afterwards: Metro with hot reload
-```
-
-Push notifications (messages and incoming calls when the app is closed) need an EAS project: run `eas init` in `apps/mobile`, and add FCM / APNs credentials with `eas credentials` for real devices.
+Everything else is plain Docker Compose, e.g. `docker compose logs -f server client`, `docker compose exec server sh`,
+or `docker compose up --build --watch` to rebuild images by themselves when a lockfile, the Prisma schema or a Dockerfile changes.
 
 ## Default admin
 
-On first startup the server seeds an admin user:
+`pnpm db:seed` in `server/` (runs `prisma/seed.mjs`; in Docker: `docker compose exec server pnpm db:seed`) creates an admin if it is missing:
 
 - Email: `admin@chat.local`
 - Password: `Admin123!`
 
-Override with `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` in `.env`.
+Override with `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`.
 
-## App flow
+## Database (Prisma + MongoDB)
 
-### 1. Auth
-Register or sign in at http://localhost:5176 → bearer token stored → socket connects.
+The data model is `server/prisma/schema.prisma`; the server queries it only through the repositories in `server/libs/db`. MongoDB has no migrations: `prisma db push` creates the indexes, and the server container runs it on every start.
 
-### 2. General channel (`#general`)
-- Public room — all online users see the same messages.
-- Messages persist in MongoDB under room `general`.
+Prisma needs MongoDB transactions, so Mongo runs as a single-node replica set. Connect from your machine with `directConnection=true`, e.g. `mongodb://127.0.0.1:27018/realtime_chat?directConnection=true`.
 
-### 3. Direct messages (DM)
-- Click an online user in the sidebar (or start chatting with someone from message history).
-- Messages go to a **private room** `dm..userA..userB` (sorted usernames).
-- Only the two participants can read/send in that room.
-- Socket auto-joins the DM room when you open the conversation.
+After editing the schema: `pnpm prisma generate` in `server/` (in Docker, `make up` rebuilds the image). `pnpm db:reset` deletes every message and file record.
 
-### 4. Audio / video calls
-- Open a **DM** conversation (not `#general`).
-- Use phone / video buttons in the chat header.
-- Flow: invite → callee accepts → WebRTC offer/answer via Socket.io → media via P2P + coturn TURN.
-- Calls work across users regardless of which room they are viewing.
+## Local development (without Docker for the apps)
 
-### 5. File sharing
-- Attach files in any conversation (general or DM).
-- Files, profile photos, and group images are stored in **MinIO** (S3-compatible object storage).
+```bash
+make install                                    # pnpm install in server/ and client/
+docker compose up -d mongo minio minio-init coturn   # only the infrastructure in Docker
+cp server/.env.example server/.env              # then export it: set -a; . server/.env; set +a
+cd server && pnpm exec prisma db push && pnpm dev   # http://localhost:3001
+cd client && pnpm dev                           # http://localhost:3000, proxies /api and /socket.io to the server
+```
 
 ## Architecture
 
+```text
+Browser (3000)
+  ├─ /api/*      → Vite proxy → server:3001/api/*
+  └─ /socket.io  → Vite proxy → server:3001 (WebSocket)
+
+server:3001
+  ├─ better-auth   /api/auth/*  (email/password sign-in, sessions; Prisma adapter)
+  ├─ tokens        POST /api/token: session → short-lived access token (EdDSA JWT), refresh-token cookie
+  ├─ REST          /api/rooms/:room/messages, /api/rooms/:room/files, /api/groups, /api/contacts, …
+  ├─ Socket.IO     message, typing, presence, call:*, group-call:*
+  ├─ MongoDB       mongo:27017 via Prisma
+  └─ MinIO         minio:9000 (bucket: chat-uploads): attachments, avatars, group images
+
+coturn:3478      STUN/TURN for WebRTC
 ```
-Browser (5176)
-  ├─ /api/*     → Vite proxy → server:3004
-  └─ /socket.io → Vite proxy → server:3004 (WebSocket)
 
-server:3004
-  ├─ better-auth  /auth/*
-  ├─ REST         /rooms/:room/messages, /rooms/:room/files
-  ├─ Socket.io    message, typing, presence, call:*
-  ├─ MongoDB      mongo:27017
-  └─ MinIO        minio:9000 (bucket: chat-uploads)
+Every HTTP route has an access token check unless it is public; sign-in, token and account routes use the better-auth session instead.
 
-coturn:3478       STUN/TURN for WebRTC
-minio:9000        Object storage (files, avatars, group images)
-minio:9001        MinIO web console
-```
+## App flow
 
-`MINIO_ENDPOINT` is **required**. Chat attachments, profile photos, and group images are stored only in MinIO (MongoDB keeps metadata and references).
+1. **Auth**: register or sign in at http://localhost:3000; the client exchanges the session for an access token and opens the socket.
+2. **#general**: public room; every online user sees the same messages.
+3. **Direct messages**: click a user; messages go to a private room `dm..userA..userB`.
+4. **Groups**: create a group with members, a name and an image.
+5. **Calls**: phone / video buttons in a DM or group header; WebRTC signaling over Socket.IO, media P2P through coturn.
+6. **Files**: attach files in any conversation; stored in MinIO.
 
 ## WebRTC / TURN
 
-Calls use the **coturn** container. For local Docker, `TURN_HOST=localhost` works from the browser.
+For local Docker, `TURN_HOST=localhost` works from the browser. On a remote server set `TURN_EXTERNAL_IP` (public IP) and `TURN_HOST` (a hostname browsers can reach) in `.env`.
 
-On a remote server set in `.env`:
+## Legal pages
 
-- `TURN_EXTERNAL_IP` — your public IP
-- `TURN_HOST` — hostname browsers can reach
-
-## Local dev (without Docker)
-
-```bash
-pnpm install
-pnpm turbo run dev   # watches the packages and runs the server and client together
-```
-
-The server needs MongoDB and MinIO running (for example the `mongo` and `minio` services from `docker/docker-compose.dev.yml`).
-
-Client dev server: http://localhost:5176 (proxies API to port 3004).
+The sign-up terms checkbox, cookie banner and account settings link to terms, privacy and cookie pages at `VITE_LEGAL_URL` (`<url>/terms`, `/privacy`, `/cookies`). Set it in `.env` (Docker) or `client/.env`.
 
 MIT

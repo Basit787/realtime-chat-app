@@ -1,0 +1,177 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* ChatWave theme (shadcn CSS-variable tokens), styled after a Teams-like workspace */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* Project tokens: chat bubbles, presence dots, the app rail and the chat canvas */
+  --color-chat-incoming: var(--chat-incoming);
+  --color-chat-outgoing: var(--chat-outgoing);
+  --color-online: var(--online);
+  --color-away: var(--away);
+  --color-busy: var(--busy);
+  --color-rail: var(--rail);
+  --color-rail-foreground: var(--rail-foreground);
+  --color-rail-active: var(--rail-active);
+  --color-rail-hover: var(--rail-hover);
+  --color-canvas: var(--canvas);
+  --font-sans:
+    "Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Teams-style palette: indigo brand, neutral greys, a dark app rail and a soft grey chat canvas */
+:root {
+  --radius: 0.375rem;
+  --background: #ffffff;
+  --foreground: #242424;
+  --card: #ffffff;
+  --card-foreground: #242424;
+  --popover: #ffffff;
+  --popover-foreground: #242424;
+  --primary: #5b5fc7;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #242424;
+  --muted: #f5f5f5;
+  --muted-foreground: #616161;
+  --accent: #ebebeb;
+  --accent-foreground: #242424;
+  --destructive: #c4314b;
+  --border: #e0e0e0;
+  --input: #ffffff;
+  --ring: #5b5fc7;
+  --chart-1: #5b5fc7;
+  --chart-2: #13a10e;
+  --chart-3: #c4314b;
+  --chart-4: #ffaa44;
+  --chart-5: #0f6cbd;
+  /* Conversation list pane */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #242424;
+  --sidebar-primary: #5b5fc7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #242424;
+  --sidebar-border: #e0e0e0;
+  --sidebar-ring: #5b5fc7;
+  /* Top bar and the vertical app rail */
+  --rail: #ebebeb;
+  --rail-foreground: #424242;
+  --rail-active: #5b5fc7;
+  --rail-hover: #f5f5f5;
+  /* Behind the messages */
+  --canvas: #f5f5f5;
+  --chat-incoming: #ffffff;
+  --chat-outgoing: #e8ebfa;
+  --online: #13a10e;
+  --away: #eaa300;
+  --busy: #c4314b;
+}
+
+.dark {
+  --background: #292929;
+  --foreground: #ffffff;
+  --card: #292929;
+  --card-foreground: #ffffff;
+  --popover: #2e2e2e;
+  --popover-foreground: #ffffff;
+  --primary: #7f85f5;
+  --primary-foreground: #ffffff;
+  --secondary: #333333;
+  --secondary-foreground: #ffffff;
+  --muted: #1f1f1f;
+  --muted-foreground: #adadad;
+  --accent: #3d3d3d;
+  --accent-foreground: #ffffff;
+  --destructive: #dc626d;
+  --border: #3d3d3d;
+  --input: #292929;
+  --ring: #7f85f5;
+  --chart-1: #7f85f5;
+  --chart-2: #54b054;
+  --chart-3: #dc626d;
+  --chart-4: #ffaa44;
+  --chart-5: #479ef5;
+  --sidebar: #1f1f1f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #7f85f5;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2e2e2e;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #333333;
+  --sidebar-ring: #7f85f5;
+  --rail: #141414;
+  --rail-foreground: #d6d6d6;
+  --rail-active: #7f85f5;
+  --rail-hover: #292929;
+  --canvas: #1f1f1f;
+  --chat-incoming: #292929;
+  --chat-outgoing: #2f2f4a;
+  --online: #54b054;
+  --away: #f9c159;
+  --busy: #dc626d;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
